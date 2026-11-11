@@ -105,6 +105,10 @@ public final class ContractSnapshots {
             node.forEach(item -> out.add(sortKeys(item)));
             return out;
         }
+        // 文本标量：统一换行符为 LF，避免 Windows 生成的基线（含 \r\n）在 Linux CI 上与 LF 输出不匹配
+        if (node.isTextual()) {
+            return node.asText().replace("\r\n", "\n").replace("\r", "\n");
+        }
         return JSON.convertValue(node, Object.class);
     }
 
