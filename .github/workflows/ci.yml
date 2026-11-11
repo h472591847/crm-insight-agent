@@ -32,6 +32,10 @@ jobs:
         # 默认排除 8 个依赖真实 CRM 测试库的集成/对账用例（见 backend/pom.xml surefire excludes）
         run: ./mvnw -B -pl mcp-server -am test
 
+      - name: Print surefire reports on failure
+        if: failure()
+        run: find mcp-server/target/surefire-reports -name '*.txt' -print -exec cat {} \;
+
       - name: Publish test summary
         uses: mikepenz/action-junit-report@v5
         if: always()
