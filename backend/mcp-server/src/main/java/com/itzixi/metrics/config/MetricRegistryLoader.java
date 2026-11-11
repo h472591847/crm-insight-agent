@@ -18,6 +18,8 @@ import org.yaml.snakeyaml.constructor.SafeConstructor;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Comparator;
 import java.util.List;
 
 /**
@@ -45,6 +47,9 @@ public class MetricRegistryLoader {
 
     public MetricRegistry load() throws IOException {
         Resource[] resources = new PathMatchingResourcePatternResolver().getResources(METRICS_PATTERN);
+        // 按文件名排序，保证跨平台（Windows NTFS / Linux ext4）加载顺序确定，
+        // 否则 LinkedHashMap 插入序不同会导致目录契约快照在 CI 上不稳定。
+        Arrays.sort(resources, Comparator.comparing(r -> r.getFilename() == null ? "" : r.getFilename()));
         List<MetricDefinition> definitions = new ArrayList<>();
         for (Resource resource : resources) {
             if (COLUMN_TYPES_FILE.equalsIgnoreCase(resource.getFilename())) {
