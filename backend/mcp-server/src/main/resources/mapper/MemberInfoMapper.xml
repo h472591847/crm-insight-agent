@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
-<mapper namespace="com.itzixi.mapper.MemberInfoMapper">
+<mapper namespace="com.github.yingli.mapper.MemberInfoMapper">
 
     <!--
       门店精确名称匹配：`= keyword` 或 `= keyword+'店'`（用户少写"店"后缀时也能命中）。

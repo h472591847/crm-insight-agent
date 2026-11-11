@@ -137,7 +137,7 @@ src/test/java/.../CrmToolValidationTest.java           // 参数校验单测
 ```
 mcp/config/ToolConfiguration.java                      // toolObjects 追加 crmAnalyticsTool
 ```
-> 均无新增 Maven 依赖；新 Mapper 位于 `com.itzixi.mapper`，被 `@MapperScan` 自动扫描。
+> 均无新增 Maven 依赖；新 Mapper 位于 `com.github.yingli.mapper`，被 `@MapperScan` 自动扫描。
 
 ## 七、实施步骤
 

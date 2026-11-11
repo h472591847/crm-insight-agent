@@ -33,7 +33,7 @@
    ▼
 MCP over SSE
    ▼
-mcp-server 工具（com.itzixi.mcp.tool.MetricTool）
+mcp-server 工具（com.github.yingli.mcp.tool.MetricTool）
    ├─ 运行期域工具（仅 2 个）：queryMemberMetric / queryOrderMetric
    ├─ 元工具：listMetrics 目录 · explainMetric 干跑编译
    └─ 开发期脚手架：draftMetric（MetricDrafter 起草 YAML，不连库/不落库/不注册）
@@ -585,7 +585,7 @@ GROUP BY expense_stationCode ORDER BY order_count desc LIMIT 500
 
 ## 九、涉及文件清单
 
-> 〔2026-10-30 校准〕按真实代码重写：实际包为 `com.itzixi.metrics`（非初稿的 `mcp/metrics`）；维度/度量等子模型与 Grain/Status 枚举内嵌于 `MetricDefinition` record，未拆独立类；`SqlGuard` 与 `JSqlParserCapabilityTest` 未落地（M4 预留），已从清单移出。下文为**当前实际存在**的文件。
+> 〔2026-10-30 校准〕按真实代码重写：实际包为 `com.github.yingli.metrics`（非初稿的 `mcp/metrics`）；维度/度量等子模型与 Grain/Status 枚举内嵌于 `MetricDefinition` record，未拆独立类；`SqlGuard` 与 `JSqlParserCapabilityTest` 未落地（M4 预留），已从清单移出。下文为**当前实际存在**的文件。
 
 **新增（已落地）**
 

@@ -2,7 +2,7 @@ package com.test;
 
 
 import cn.hutool.core.date.StopWatch;
-import com.itzixi.Application;
+import com.github.yingli.Application;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 

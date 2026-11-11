@@ -22,17 +22,17 @@
 
 ### 1.1 现状
 
-- `com.itzixi.metrics`（15 个类）把配置加载、解析、启动期校验、运行期校验、注册表、SQL 编译、SQL 执行、只读守卫、全局常量、派生计算、异常、查询服务、开发期工具、DTO 混在同一层。`SqlExecutor`、`ColumnTypeRegistry`、`GeneratedSql` 实为跨域基础设施，却归属指标域。
-- `com.itzixi.adhoc`（12 个类）把注册表配置与 Bean 装配混在一个配置类；`model` 包同时放请求、响应、规格；`AdhocValidator` 内含 261 个保留字常量与六类校验规则。
+- `com.github.yingli.metrics`（15 个类）把配置加载、解析、启动期校验、运行期校验、注册表、SQL 编译、SQL 执行、只读守卫、全局常量、派生计算、异常、查询服务、开发期工具、DTO 混在同一层。`SqlExecutor`、`ColumnTypeRegistry`、`GeneratedSql` 实为跨域基础设施，却归属指标域。
+- `com.github.yingli.adhoc`（12 个类）把注册表配置与 Bean 装配混在一个配置类；`model` 包同时放请求、响应、规格；`AdhocValidator` 内含 261 个保留字常量与六类校验规则。
 - `mcp.tool` 中 `AdhocTool` 直接注入 `SemanticRegistry`、`ColumnTypeRegistry` 并自行组装目录输出；`GuessTool` 直接注入 Mapper（Phase 1 历史债）。
-- 指标域 DTO 放在 `com.itzixi.entity.request/response`，与 Phase 1 遗留 DTO 混放，形成指标域对通用实体包的反向依赖。
+- 指标域 DTO 放在 `com.github.yingli.entity.request/response`，与 Phase 1 遗留 DTO 混放，形成指标域对通用实体包的反向依赖。
 - `SqlExecutor`、`ColumnTypeRegistry` 的 Bean 声明在 `MetricRegistryConfiguration`，adhoc 的运行期依赖由指标域配置提供，配置层跨域耦合。
 
 ### 1.2 目标
 
 1. 按职责收口：请求进 `request`、出参进 `response`、领域模型进 `model`、校验进 `validate`、编译进 `compile`、注册表进 `registry`、装配进 `config`、共享设施进 `shared`。
 2. 依赖方向单向：`mcp.tool → 域 service`，`域 service → 本域内部`，`shared → 不依赖任何域`。
-3. 指标域与 adhoc 域互不 import，只能共同依赖 `com.itzixi.shared`。
+3. 指标域与 adhoc 域互不 import，只能共同依赖 `com.github.yingli.shared`。
 4. 新人打开任一包即可判断文件职责；重构过程零行为变化、零模型契约变化。
 
 ---
@@ -40,7 +40,7 @@
 ## 二、目标包结构
 
 ```text
-com.itzixi
+com.github.yingli
 ├── McpServerApplication
 ├── mcp
 │   ├── tool                  # MCP 适配层：@Tool 入参 → 域 service → 出参/DTO
@@ -100,8 +100,8 @@ com.itzixi
 
 1. **工具层只能依赖各域 service 与 request/response。**
    `mcp.tool` 不得 import `*.compile`、`*.validate`、`*.registry`、`shared.sql`；目录组装必须由 `MetricCatalogService` / `SemanticCatalogService` 提供，不得在 Tool 内自行读注册表。
-2. **adhoc 不得 import `com.itzixi.metrics`（反向同样禁止）。**
-   两域只能共同依赖 `com.itzixi.shared`。B2 完成后，`GeneratedSql`、`SqlExecutor`、`ColumnTypeRegistry`、`DerivedCalculator`、通用上限常量都必须位于 `shared`，否则视为违规。
+2. **adhoc 不得 import `com.github.yingli.metrics`（反向同样禁止）。**
+   两域只能共同依赖 `com.github.yingli.shared`。B2 完成后，`GeneratedSql`、`SqlExecutor`、`ColumnTypeRegistry`、`DerivedCalculator`、通用上限常量都必须位于 `shared`，否则视为违规。
 3. **每个域一个 Configuration 只声明 Bean，加载逻辑放 Loader，资源路径保持不变。**
    - `MetricConfiguration` / `AdhocConfiguration` 只做 Bean 装配。
    - `MetricRegistryLoader` / `SemanticCatalogLoader` / `ColumnTypesLoader` 负责读取 YAML、解析、启动期校验。
@@ -117,10 +117,10 @@ com.itzixi
 
 | 新增测试类（目标 FQN） | 职责 | 依赖 |
 |---|---|---|
-| `com.itzixi.mcp.tool.ToolContractSnapshotTest` | 用 `MethodToolCallbackProvider` 构建全部工具，快照 `name` / `description` / `inputSchema` 规范 JSON | `MetricsFixtures`、`AdhocFixtures`、Mockito |
-| `com.itzixi.metrics.MetricCatalogContractTest` | 快照 `catalog(domain)` 输出的键集合与层级结构 | `MetricsFixtures` |
-| `com.itzixi.adhoc.SemanticCatalogContractTest` | 通过 `AdhocTool.listSemanticCatalog()` 快照目录 JSON，含条件键出现/不出现行为 | `AdhocFixtures` |
-| `com.itzixi.metrics.SqlGoldenSnapshotTest` | 2–3 个代表请求的完整 SQL 字符串快照 | 复用 `SqlCompilerTest` 用例 |
+| `com.github.yingli.mcp.tool.ToolContractSnapshotTest` | 用 `MethodToolCallbackProvider` 构建全部工具，快照 `name` / `description` / `inputSchema` 规范 JSON | `MetricsFixtures`、`AdhocFixtures`、Mockito |
+| `com.github.yingli.metrics.MetricCatalogContractTest` | 快照 `catalog(domain)` 输出的键集合与层级结构 | `MetricsFixtures` |
+| `com.github.yingli.adhoc.SemanticCatalogContractTest` | 通过 `AdhocTool.listSemanticCatalog()` 快照目录 JSON，含条件键出现/不出现行为 | `AdhocFixtures` |
+| `com.github.yingli.metrics.SqlGoldenSnapshotTest` | 2–3 个代表请求的完整 SQL 字符串快照 | 复用 `SqlCompilerTest` 用例 |
 
 - 新增类：以上 4 个测试类（仅测试代码）。
 - 新增非 Java 文件：见第五章四个基线文件。
@@ -139,33 +139,33 @@ $env:JAVA_HOME='C:\Users\LAN\.jdks\corretto-21.0.13'
 
 | 当前全限定名 | 目标全限定名 | 纯移动 | 备注 |
 |---|---|---|---|
-| `com.itzixi.adhoc.model.AdhocQueryRequest` | `com.itzixi.adhoc.request.AdhocQueryRequest` | 是 | 工具入参 |
-| `com.itzixi.adhoc.model.AdhocBatchRequest` | `com.itzixi.adhoc.request.AdhocBatchRequest` | 是 | 工具入参 |
-| `com.itzixi.adhoc.model.MeasureSpec` | `com.itzixi.adhoc.request.MeasureSpec` | 是 | 请求内嵌规格 |
-| `com.itzixi.adhoc.model.FilterSpec` | `com.itzixi.adhoc.request.FilterSpec` | 是 | 请求内嵌规格 |
-| `com.itzixi.adhoc.model.TimeRangeSpec` | `com.itzixi.adhoc.request.TimeRangeSpec` | 是 | 请求内嵌规格 |
-| `com.itzixi.adhoc.model.AdhocResult` | `com.itzixi.adhoc.response.AdhocResult` | 是 | 工具出参 |
-| `com.itzixi.adhoc.AdhocException` | `com.itzixi.adhoc.exception.AdhocException` | 是 | 域异常 |
-| `com.itzixi.entity.request.MetricQueryRequest` | `com.itzixi.metrics.request.MetricQueryRequest` | 是 | 指标工具入参 |
-| `com.itzixi.entity.request.MetricDraftRequest` | `com.itzixi.metrics.request.MetricDraftRequest` | 是 | 含 4 个嵌套 Spec，随外层整体移动 |
-| `com.itzixi.entity.request.FilterItem` | `com.itzixi.metrics.request.FilterItem` | 是 | Phase 1 工具改为引用 metrics.request |
-| `com.itzixi.entity.response.MetricResult` | `com.itzixi.metrics.response.MetricResult` | 是 | 指标出参 |
-| `com.itzixi.entity.response.ColumnMeta` | `com.itzixi.metrics.response.ColumnMeta` | 是 | 指标列元数据 |
+| `com.github.yingli.adhoc.model.AdhocQueryRequest` | `com.github.yingli.adhoc.request.AdhocQueryRequest` | 是 | 工具入参 |
+| `com.github.yingli.adhoc.model.AdhocBatchRequest` | `com.github.yingli.adhoc.request.AdhocBatchRequest` | 是 | 工具入参 |
+| `com.github.yingli.adhoc.model.MeasureSpec` | `com.github.yingli.adhoc.request.MeasureSpec` | 是 | 请求内嵌规格 |
+| `com.github.yingli.adhoc.model.FilterSpec` | `com.github.yingli.adhoc.request.FilterSpec` | 是 | 请求内嵌规格 |
+| `com.github.yingli.adhoc.model.TimeRangeSpec` | `com.github.yingli.adhoc.request.TimeRangeSpec` | 是 | 请求内嵌规格 |
+| `com.github.yingli.adhoc.model.AdhocResult` | `com.github.yingli.adhoc.response.AdhocResult` | 是 | 工具出参 |
+| `com.github.yingli.adhoc.AdhocException` | `com.github.yingli.adhoc.exception.AdhocException` | 是 | 域异常 |
+| `com.github.yingli.entity.request.MetricQueryRequest` | `com.github.yingli.metrics.request.MetricQueryRequest` | 是 | 指标工具入参 |
+| `com.github.yingli.entity.request.MetricDraftRequest` | `com.github.yingli.metrics.request.MetricDraftRequest` | 是 | 含 4 个嵌套 Spec，随外层整体移动 |
+| `com.github.yingli.entity.request.FilterItem` | `com.github.yingli.metrics.request.FilterItem` | 是 | Phase 1 工具改为引用 metrics.request |
+| `com.github.yingli.entity.response.MetricResult` | `com.github.yingli.metrics.response.MetricResult` | 是 | 指标出参 |
+| `com.github.yingli.entity.response.ColumnMeta` | `com.github.yingli.metrics.response.ColumnMeta` | 是 | 指标列元数据 |
 
 - 新增类：无。
 - 非 Java 文件：无。Phase 1 的 `MemberOverviewRequest/Result`、`ProductRankingRequest/Result`、`StationPerformanceRequest/Result` 留在 `entity.*`。
 - 波及测试（仅 import 变化）：
-  - `com.itzixi.adhoc.AdhocReconciliationIT`
-  - `com.itzixi.adhoc.AdhocToolTest`
-  - `com.itzixi.adhoc.AdhocValidatorTest`
-  - `com.itzixi.adhoc.AdhocSqlCompilerTest`
-  - `com.itzixi.adhoc.AdhocQueryServiceTest`
-  - `com.itzixi.metrics.VipMetricsReconciliationTest`
-  - `com.itzixi.metrics.Phase2MetricsReconciliationTest`
-  - `com.itzixi.metrics.QueryPlanDefaultWindowTest`
-  - `com.itzixi.metrics.MetricsAsCodeMigrationReconciliationTest`
-  - `com.itzixi.metrics.MetricDrafterTest`
-  - `com.itzixi.mcp.tool.MetricToolInjectionTest`
+  - `com.github.yingli.adhoc.AdhocReconciliationIT`
+  - `com.github.yingli.adhoc.AdhocToolTest`
+  - `com.github.yingli.adhoc.AdhocValidatorTest`
+  - `com.github.yingli.adhoc.AdhocSqlCompilerTest`
+  - `com.github.yingli.adhoc.AdhocQueryServiceTest`
+  - `com.github.yingli.metrics.VipMetricsReconciliationTest`
+  - `com.github.yingli.metrics.Phase2MetricsReconciliationTest`
+  - `com.github.yingli.metrics.QueryPlanDefaultWindowTest`
+  - `com.github.yingli.metrics.MetricsAsCodeMigrationReconciliationTest`
+  - `com.github.yingli.metrics.MetricDrafterTest`
+  - `com.github.yingli.mcp.tool.MetricToolInjectionTest`
   - 主代码：`CrmAnalyticsTool`、`MetricTool`、`AdhocTool`、`MetricQueryService`、`QueryPlanValidator`、`MetricDrafter`
 - 纯移动：**整批可纯移动**，IDE Move + Optimize Imports 即可，无 Spring 注解与包内可见性依赖。
 - 验收命令：
@@ -180,28 +180,28 @@ $env:JAVA_HOME='C:\Users\LAN\.jdks\corretto-21.0.13'
 
 | 当前全限定名 | 目标全限定名 | 纯移动 | 备注 |
 |---|---|---|---|
-| `com.itzixi.metrics.GeneratedSql` | `com.itzixi.shared.sql.GeneratedSql` | 是 | 两域共用编译产物 |
-| `com.itzixi.metrics.SqlExecutor` | `com.itzixi.shared.sql.SqlExecutor` | 是 | 两域共用执行器 |
-| `com.itzixi.metrics.ReadOnlySqlGuard` | `com.itzixi.shared.sql.ReadOnlySqlGuard` | 是 | 执行层只读闸门 |
-| `com.itzixi.metrics.ColumnTypeRegistry` | `com.itzixi.shared.catalog.ColumnTypeRegistry` | 是 | 两域共用列类型/PII 登记 |
-| `com.itzixi.metrics.DerivedCalculator` | `com.itzixi.shared.calc.DerivedCalculator` | 是 | 两域共用派生计算 |
-| `com.itzixi.metrics.MetricsLimits` | `com.itzixi.shared.limits.MetricsLimits` | 是 | 本批只移动，B4 再拆分 |
+| `com.github.yingli.metrics.GeneratedSql` | `com.github.yingli.shared.sql.GeneratedSql` | 是 | 两域共用编译产物 |
+| `com.github.yingli.metrics.SqlExecutor` | `com.github.yingli.shared.sql.SqlExecutor` | 是 | 两域共用执行器 |
+| `com.github.yingli.metrics.ReadOnlySqlGuard` | `com.github.yingli.shared.sql.ReadOnlySqlGuard` | 是 | 执行层只读闸门 |
+| `com.github.yingli.metrics.ColumnTypeRegistry` | `com.github.yingli.shared.catalog.ColumnTypeRegistry` | 是 | 两域共用列类型/PII 登记 |
+| `com.github.yingli.metrics.DerivedCalculator` | `com.github.yingli.shared.calc.DerivedCalculator` | 是 | 两域共用派生计算 |
+| `com.github.yingli.metrics.MetricsLimits` | `com.github.yingli.shared.limits.MetricsLimits` | 是 | 本批只移动，B4 再拆分 |
 
 新增类：
 
 | 新增类 | 职责 | 拆出位置 |
 |---|---|---|
-| `com.itzixi.shared.config.AnalyticsInfrastructureConfiguration` | 声明 `columnTypeRegistry()`、`sqlExecutor(DataSource)` 两个 Bean，方法名/参数/行为与旧实现逐字一致 | `MetricRegistryConfiguration` 的同名 `@Bean` |
+| `com.github.yingli.shared.config.AnalyticsInfrastructureConfiguration` | 声明 `columnTypeRegistry()`、`sqlExecutor(DataSource)` 两个 Bean，方法名/参数/行为与旧实现逐字一致 | `MetricRegistryConfiguration` 的同名 `@Bean` |
 
 - 非 Java 文件：**无文件移动**。`resources/metrics/column-types.yaml` 路径不变；`COLUMN_TYPES_LOCATION` / `COLUMN_TYPES_FILE` 常量随 Bean 方法迁入新配置类（仍为 Java 常量）。
 - Spring 变更：从 `MetricRegistryConfiguration` 删除 `columnTypeRegistry()`、`sqlExecutor()` 两个 `@Bean` 及对应常量；`metricRegistry`、`sqlCompiler` 两个 Bean 保留至 B5。
 - 波及测试：
-  - `com.itzixi.metrics.MetricsFixtures`：`new MetricRegistryConfiguration().columnTypeRegistry()` 改为新配置类/加载器
-  - `com.itzixi.adhoc.AdhocFixtures`：同上
-  - `com.itzixi.mcp.tool.MetricToolInjectionTest`（`SqlExecutor` import）
-  - `com.itzixi.mcp.tool.CrmAnalyticsToolTest`（`SqlExecutor` import）
-  - `com.itzixi.metrics.ReadOnlySqlGuardTest`（`SqlExecutor.JdbcSqlExecutor` import）
-  - `com.itzixi.adhoc.AdhocReconciliationIT`、`AdhocToolTest`、`AdhocValidatorTest`、`AdhocSqlCompilerTest`、`AdhocQueryServiceTest`、`SemanticRegistryTest`（`ColumnTypeRegistry` / `GeneratedSql` import）
+  - `com.github.yingli.metrics.MetricsFixtures`：`new MetricRegistryConfiguration().columnTypeRegistry()` 改为新配置类/加载器
+  - `com.github.yingli.adhoc.AdhocFixtures`：同上
+  - `com.github.yingli.mcp.tool.MetricToolInjectionTest`（`SqlExecutor` import）
+  - `com.github.yingli.mcp.tool.CrmAnalyticsToolTest`（`SqlExecutor` import）
+  - `com.github.yingli.metrics.ReadOnlySqlGuardTest`（`SqlExecutor.JdbcSqlExecutor` import）
+  - `com.github.yingli.adhoc.AdhocReconciliationIT`、`AdhocToolTest`、`AdhocValidatorTest`、`AdhocSqlCompilerTest`、`AdhocQueryServiceTest`、`SemanticRegistryTest`（`ColumnTypeRegistry` / `GeneratedSql` import）
 - 纯移动：**否**。类移动是纯的，但 `@Bean` 迁移必须与删除原子执行，否则出现重复 Bean（见第六章）。
 - 验收命令：
 
@@ -217,31 +217,31 @@ $env:JAVA_HOME='C:\Users\LAN\.jdks\corretto-21.0.13'
 
 | 新增类 | 职责 | 拆出位置 |
 |---|---|---|
-| `com.itzixi.metrics.registry.MetricDomains` | `normalizeDomain()` + `ALLOWED_DOMAINS`，供目录服务与查询服务共用 | **前置**：从 `MetricRegistryConfiguration.normalizeDomain()`（当前包内可见）与 `MetricsLimits.ALLOWED_DOMAINS` 移出。不做此步，`MetricQueryService` 移动后无法编译 |
-| `com.itzixi.metrics.service.MetricCatalogService` | `catalog(domain)` + `columnHint(column)`，仅依赖 `MetricRegistry`、`MetricDomains` | 从 `MetricQueryService` 拆分 |
-| `com.itzixi.adhoc.service.SemanticCatalogService` | 组装 `listSemanticCatalog` 输出（pii/indexed/guard/relationships） | 从 `AdhocTool.listSemanticCatalog()` 拆出 |
+| `com.github.yingli.metrics.registry.MetricDomains` | `normalizeDomain()` + `ALLOWED_DOMAINS`，供目录服务与查询服务共用 | **前置**：从 `MetricRegistryConfiguration.normalizeDomain()`（当前包内可见）与 `MetricsLimits.ALLOWED_DOMAINS` 移出。不做此步，`MetricQueryService` 移动后无法编译 |
+| `com.github.yingli.metrics.service.MetricCatalogService` | `catalog(domain)` + `columnHint(column)`，仅依赖 `MetricRegistry`、`MetricDomains` | 从 `MetricQueryService` 拆分 |
+| `com.github.yingli.adhoc.service.SemanticCatalogService` | 组装 `listSemanticCatalog` 输出（pii/indexed/guard/relationships） | 从 `AdhocTool.listSemanticCatalog()` 拆出 |
 
 移动类：
 
 | 当前全限定名 | 目标全限定名 | 纯移动 |
 |---|---|---|
-| `com.itzixi.metrics.MetricQueryService` | `com.itzixi.metrics.service.MetricQueryService` | 是（前提：`MetricDomains` 已落地） |
-| `com.itzixi.adhoc.AdhocQueryService` | `com.itzixi.adhoc.service.AdhocQueryService` | 是 |
+| `com.github.yingli.metrics.MetricQueryService` | `com.github.yingli.metrics.service.MetricQueryService` | 是（前提：`MetricDomains` 已落地） |
+| `com.github.yingli.adhoc.AdhocQueryService` | `com.github.yingli.adhoc.service.AdhocQueryService` | 是 |
 
 修改类（非移动）：
 
 | 类 | 变化 |
 |---|---|
-| `com.itzixi.mcp.tool.AdhocTool` | 构造器 `(AdhocQueryService, SemanticRegistry, ColumnTypeRegistry)` → `(AdhocQueryService, SemanticCatalogService)`；目录方法改为一行委托 |
-| `com.itzixi.mcp.tool.MetricTool` | 构造器新增 `MetricCatalogService`；`listMetrics` 改为委托；异常捕获仍为 `MetricException` |
-| `com.itzixi.metrics.MetricQueryService` | 删除 `catalog()` / `columnHint()`；查询与干跑链路不变 |
+| `com.github.yingli.mcp.tool.AdhocTool` | 构造器 `(AdhocQueryService, SemanticRegistry, ColumnTypeRegistry)` → `(AdhocQueryService, SemanticCatalogService)`；目录方法改为一行委托 |
+| `com.github.yingli.mcp.tool.MetricTool` | 构造器新增 `MetricCatalogService`；`listMetrics` 改为委托；异常捕获仍为 `MetricException` |
+| `com.github.yingli.metrics.MetricQueryService` | 删除 `catalog()` / `columnHint()`；查询与干跑链路不变 |
 
 - 非 Java 文件：无。`ToolConfiguration` 不新增工具、不改注册列表。
 - 波及测试：
-  - `com.itzixi.adhoc.AdhocToolTest`：构造器 3→2；目录断言改为经服务调用，输出必须逐键不变
-  - `com.itzixi.mcp.tool.MetricToolInjectionTest`：构造器新增目录服务；`MetricsFixtures` 增加 `catalogService()` helper
-  - `com.itzixi.mcp.tool.CrmAnalyticsToolTest`、`com.itzixi.adhoc.AdhocReconciliationIT`：`MetricQueryService` 包名 import
-  - 新增 `com.itzixi.metrics.MetricCatalogServiceTest`、`com.itzixi.adhoc.SemanticCatalogServiceTest`（复用 B0 快照）
+  - `com.github.yingli.adhoc.AdhocToolTest`：构造器 3→2；目录断言改为经服务调用，输出必须逐键不变
+  - `com.github.yingli.mcp.tool.MetricToolInjectionTest`：构造器新增目录服务；`MetricsFixtures` 增加 `catalogService()` helper
+  - `com.github.yingli.mcp.tool.CrmAnalyticsToolTest`、`com.github.yingli.adhoc.AdhocReconciliationIT`：`MetricQueryService` 包名 import
+  - 新增 `com.github.yingli.metrics.MetricCatalogServiceTest`、`com.github.yingli.adhoc.SemanticCatalogServiceTest`（复用 B0 快照）
 - 纯移动：**否**。含逻辑抽取与构造器变更；`MetricQueryService` 移动本身可视为纯移动，但必须先完成 `MetricDomains`。
 - 验收命令：
 
@@ -255,35 +255,35 @@ $env:JAVA_HOME='C:\Users\LAN\.jdks\corretto-21.0.13'
 
 | 当前全限定名 | 目标全限定名 | 类型 | 纯移动 |
 |---|---|---|---|
-| `com.itzixi.metrics.SqlCompiler` | `com.itzixi.metrics.compile.MetricSqlCompiler` | 改名 + 移动 | 是（IDE Rename/Move） |
-| `com.itzixi.metrics.QueryPlanValidator` | `com.itzixi.metrics.validate.MetricQueryValidator` | 改名 + 移动 | 是 |
-| `com.itzixi.metrics.MetricDefinitionValidator` | `com.itzixi.metrics.validate.MetricConfigValidator` | 改名 + 移动 | 是 |
-| `com.itzixi.metrics.MetricRegistry` | `com.itzixi.metrics.registry.MetricRegistry` | 移动 | 是 |
-| `com.itzixi.metrics.MetricException` | `com.itzixi.metrics.exception.MetricException` | 移动 | 是 |
-| `com.itzixi.metrics.MetricDrafter` | `com.itzixi.metrics.tooling.MetricDrafter` | 移动 | 是 |
-| `com.itzixi.adhoc.AdhocValidator` | `com.itzixi.adhoc.validate.AdhocRequestValidator` | 改名 + 移动 | 是 |
-| `com.itzixi.adhoc.AdhocSqlCompiler` | `com.itzixi.adhoc.compile.AdhocSqlCompiler` | 移动 | 是 |
-| `com.itzixi.adhoc.SemanticRegistry` | `com.itzixi.adhoc.model.SemanticRegistry` | 移动 | 是 |
+| `com.github.yingli.metrics.SqlCompiler` | `com.github.yingli.metrics.compile.MetricSqlCompiler` | 改名 + 移动 | 是（IDE Rename/Move） |
+| `com.github.yingli.metrics.QueryPlanValidator` | `com.github.yingli.metrics.validate.MetricQueryValidator` | 改名 + 移动 | 是 |
+| `com.github.yingli.metrics.MetricDefinitionValidator` | `com.github.yingli.metrics.validate.MetricConfigValidator` | 改名 + 移动 | 是 |
+| `com.github.yingli.metrics.MetricRegistry` | `com.github.yingli.metrics.registry.MetricRegistry` | 移动 | 是 |
+| `com.github.yingli.metrics.MetricException` | `com.github.yingli.metrics.exception.MetricException` | 移动 | 是 |
+| `com.github.yingli.metrics.MetricDrafter` | `com.github.yingli.metrics.tooling.MetricDrafter` | 移动 | 是 |
+| `com.github.yingli.adhoc.AdhocValidator` | `com.github.yingli.adhoc.validate.AdhocRequestValidator` | 改名 + 移动 | 是 |
+| `com.github.yingli.adhoc.AdhocSqlCompiler` | `com.github.yingli.adhoc.compile.AdhocSqlCompiler` | 移动 | 是 |
+| `com.github.yingli.adhoc.SemanticRegistry` | `com.github.yingli.adhoc.model.SemanticRegistry` | 移动 | 是 |
 
 新增 / 拆分：
 
 | 新增类 | 职责 | 来源 |
 |---|---|---|
-| `com.itzixi.shared.sql.MysqlReservedWords` | 261 个 MySQL 8.0 保留字集合 | 从 `AdhocValidator.MYSQL_RESERVED_WORDS` 抽出 |
-| `com.itzixi.shared.limits.ExecutionLimits` | `EXEC_MAX_ROWS`、`QUERY_TIMEOUT_SECONDS`、`MAX_EXECUTION_TIME_MS`、`DATE_PATTERN` | 拆分 `shared.limits.MetricsLimits` |
-| `com.itzixi.shared.limits.QueryLimits` | `MAX_RANGE_DAYS`、`DEFAULT_RANGE_MONTHS`、`MAX_DEFAULT_WINDOW_MONTHS`、`HARD_MAX_ROWS`、`SORT_ASC/DESC` | 拆分同上；删除 `MetricsLimits` |
+| `com.github.yingli.shared.sql.MysqlReservedWords` | 261 个 MySQL 8.0 保留字集合 | 从 `AdhocValidator.MYSQL_RESERVED_WORDS` 抽出 |
+| `com.github.yingli.shared.limits.ExecutionLimits` | `EXEC_MAX_ROWS`、`QUERY_TIMEOUT_SECONDS`、`MAX_EXECUTION_TIME_MS`、`DATE_PATTERN` | 拆分 `shared.limits.MetricsLimits` |
+| `com.github.yingli.shared.limits.QueryLimits` | `MAX_RANGE_DAYS`、`DEFAULT_RANGE_MONTHS`、`MAX_DEFAULT_WINDOW_MONTHS`、`HARD_MAX_ROWS`、`SORT_ASC/DESC` | 拆分同上；删除 `MetricsLimits` |
 
 - 非 Java 文件：无。
 - 编译断点：见第七章 `AdhocSqlCompiler.orEmpty()`。
 - 波及测试：
-  - `com.itzixi.metrics.SqlCompilerTest` → **改名** `com.itzixi.metrics.MetricSqlCompilerTest`（类名与文件名同步，`new MetricSqlCompiler()`）
-  - `com.itzixi.metrics.MetricDefinitionValidatorTest`（import 改名）
-  - `com.itzixi.metrics.QueryPlanDefaultWindowTest`（`MetricQueryValidator.normalize`）
-  - `com.itzixi.metrics.MetricsFixtures`（`MetricRegistry`、`MetricSqlCompiler`）
-  - `com.itzixi.mcp.tool.MetricToolInjectionTest`（`MetricRegistry`、`MetricSqlCompiler`）
-  - `com.itzixi.adhoc.AdhocValidatorTest` → **改名** `com.itzixi.adhoc.AdhocRequestValidatorTest`
-  - `com.itzixi.adhoc.AdhocSqlCompilerTest`、`AdhocToolTest`、`AdhocQueryServiceTest`（import）
-  - `com.itzixi.adhoc.SemanticRegistryTest`（import）
+  - `com.github.yingli.metrics.SqlCompilerTest` → **改名** `com.github.yingli.metrics.MetricSqlCompilerTest`（类名与文件名同步，`new MetricSqlCompiler()`）
+  - `com.github.yingli.metrics.MetricDefinitionValidatorTest`（import 改名）
+  - `com.github.yingli.metrics.QueryPlanDefaultWindowTest`（`MetricQueryValidator.normalize`）
+  - `com.github.yingli.metrics.MetricsFixtures`（`MetricRegistry`、`MetricSqlCompiler`）
+  - `com.github.yingli.mcp.tool.MetricToolInjectionTest`（`MetricRegistry`、`MetricSqlCompiler`）
+  - `com.github.yingli.adhoc.AdhocValidatorTest` → **改名** `com.github.yingli.adhoc.AdhocRequestValidatorTest`
+  - `com.github.yingli.adhoc.AdhocSqlCompilerTest`、`AdhocToolTest`、`AdhocQueryServiceTest`（import）
+  - `com.github.yingli.adhoc.SemanticRegistryTest`（import）
 - 纯移动：**大部分是**；唯一非纯点是 `orEmpty` 断点处理。测试改名属 IDE Rename，不改断言。
 - 验收命令：
 
@@ -297,36 +297,36 @@ $env:JAVA_HOME='C:\Users\LAN\.jdks\corretto-21.0.13'
 
 | 当前全限定名 | 目标全限定名 | 处理 |
 |---|---|---|
-| `com.itzixi.metrics.MetricRegistryConfiguration` | `com.itzixi.metrics.config.MetricRegistryLoader` + `com.itzixi.metrics.config.MetricConfiguration` | 拆分后删除原类 |
-| `com.itzixi.metrics.MetricDefinitionParser` | `com.itzixi.metrics.config.MetricDefinitionParser` | 移动（Loader 内部使用） |
-| `com.itzixi.adhoc.AdhocRegistryConfiguration` | `com.itzixi.adhoc.config.SemanticCatalogLoader` + `com.itzixi.adhoc.config.AdhocConfiguration` | 拆分后删除原类 |
-| `com.itzixi.shared.config.AnalyticsInfrastructureConfiguration` | 保持不变 | 解析逻辑外移至 `ColumnTypesLoader` |
+| `com.github.yingli.metrics.MetricRegistryConfiguration` | `com.github.yingli.metrics.config.MetricRegistryLoader` + `com.github.yingli.metrics.config.MetricConfiguration` | 拆分后删除原类 |
+| `com.github.yingli.metrics.MetricDefinitionParser` | `com.github.yingli.metrics.config.MetricDefinitionParser` | 移动（Loader 内部使用） |
+| `com.github.yingli.adhoc.AdhocRegistryConfiguration` | `com.github.yingli.adhoc.config.SemanticCatalogLoader` + `com.github.yingli.adhoc.config.AdhocConfiguration` | 拆分后删除原类 |
+| `com.github.yingli.shared.config.AnalyticsInfrastructureConfiguration` | 保持不变 | 解析逻辑外移至 `ColumnTypesLoader` |
 
 新增类：
 
 | 新增类 | 职责 | 拆出位置 |
 |---|---|---|
-| `com.itzixi.metrics.config.MetricRegistryLoader` | 读 `classpath*:/metrics/*.yaml`、解析、校验、构建 `MetricRegistry`；启动失败语义与日志不变 | `MetricRegistryConfiguration` |
-| `com.itzixi.metrics.config.MetricConfiguration` | 仅声明 `MetricRegistry`、`MetricSqlCompiler` 两个 Bean | 同上 |
-| `com.itzixi.adhoc.config.SemanticCatalogLoader` | 读 `semantic/metadata.yaml`，构建 `SemanticRegistry` | `AdhocRegistryConfiguration` |
-| `com.itzixi.adhoc.config.AdhocConfiguration` | 仅声明 `SemanticRegistry` Bean | 同上 |
-| `com.itzixi.shared.catalog.ColumnTypesLoader` | 读 `metrics/column-types.yaml`，解析为 `ColumnTypeRegistry` | `AnalyticsInfrastructureConfiguration` |
+| `com.github.yingli.metrics.config.MetricRegistryLoader` | 读 `classpath*:/metrics/*.yaml`、解析、校验、构建 `MetricRegistry`；启动失败语义与日志不变 | `MetricRegistryConfiguration` |
+| `com.github.yingli.metrics.config.MetricConfiguration` | 仅声明 `MetricRegistry`、`MetricSqlCompiler` 两个 Bean | 同上 |
+| `com.github.yingli.adhoc.config.SemanticCatalogLoader` | 读 `semantic/metadata.yaml`，构建 `SemanticRegistry` | `AdhocRegistryConfiguration` |
+| `com.github.yingli.adhoc.config.AdhocConfiguration` | 仅声明 `SemanticRegistry` Bean | 同上 |
+| `com.github.yingli.shared.catalog.ColumnTypesLoader` | 读 `metrics/column-types.yaml`，解析为 `ColumnTypeRegistry` | `AnalyticsInfrastructureConfiguration` |
 
 注解式改造：
 
 | 类 | 新增注解 | 同时删除 |
 |---|---|---|
-| `com.itzixi.adhoc.validate.AdhocRequestValidator` | `@Component` | `AdhocRegistryConfiguration#adhocValidator` |
-| `com.itzixi.adhoc.compile.AdhocSqlCompiler` | `@Component` | `#adhocSqlCompiler` |
-| `com.itzixi.adhoc.service.AdhocQueryService` | `@Service` | `#adhocQueryService` |
-| `com.itzixi.adhoc.service.SemanticCatalogService` | `@Service`（若 B3 未加） | 无 |
-| `com.itzixi.metrics.service.MetricCatalogService` | `@Service`（B3 已加则不变） | 无 |
+| `com.github.yingli.adhoc.validate.AdhocRequestValidator` | `@Component` | `AdhocRegistryConfiguration#adhocValidator` |
+| `com.github.yingli.adhoc.compile.AdhocSqlCompiler` | `@Component` | `#adhocSqlCompiler` |
+| `com.github.yingli.adhoc.service.AdhocQueryService` | `@Service` | `#adhocQueryService` |
+| `com.github.yingli.adhoc.service.SemanticCatalogService` | `@Service`（若 B3 未加） | 无 |
+| `com.github.yingli.metrics.service.MetricCatalogService` | `@Service`（B3 已加则不变） | 无 |
 
-- 非 Java 文件：**均无改动**。`application*.yml` 不新增配置；`@MapperScan("com.itzixi.mapper")` 不动；`resources` 下 YAML 路径不动；`ToolConfiguration#toolObjects` 不动。
+- 非 Java 文件：**均无改动**。`application*.yml` 不新增配置；`@MapperScan("com.github.yingli.mapper")` 不动；`resources` 下 YAML 路径不动；`ToolConfiguration#toolObjects` 不动。
 - 波及测试：
-  - `com.itzixi.metrics.MetricsFixtures`：`new MetricRegistryConfiguration()` → `new MetricRegistryLoader(...)`
-  - `com.itzixi.adhoc.AdhocFixtures`：列类型加载改走 `ColumnTypesLoader` / `AnalyticsInfrastructureConfiguration`
-  - 新增（建议）`com.itzixi.metrics.MetricRegistryLoaderTest`、`com.itzixi.adhoc.SemanticCatalogLoaderTest`：验证加载数量、未确认指标数、错误文案与拆分前一致
+  - `com.github.yingli.metrics.MetricsFixtures`：`new MetricRegistryConfiguration()` → `new MetricRegistryLoader(...)`
+  - `com.github.yingli.adhoc.AdhocFixtures`：列类型加载改走 `ColumnTypesLoader` / `AnalyticsInfrastructureConfiguration`
+  - 新增（建议）`com.github.yingli.metrics.MetricRegistryLoaderTest`、`com.github.yingli.adhoc.SemanticCatalogLoaderTest`：验证加载数量、未确认指标数、错误文案与拆分前一致
   - 上下文类测试：`AdhocReconciliationIT`、`MemberInfoMapperIntegrationTest`、`CrmAnalyticsMapperIntegrationTest` 必须重跑
 - 纯移动：**否**。拆分 + 注解化 + 删除 `@Bean` 必须同一变更集，否则重复/缺失 Bean。
 - 验收命令：
@@ -375,7 +375,7 @@ $env:JAVA_HOME='C:\Users\LAN\.jdks\corretto-21.0.13'
 
 1. **同名 Bean 并存**：Spring Boot 默认关闭 Bean 覆盖，启动抛 `BeanDefinitionOverrideException`，服务无法启动。
 2. **不同名但同类型并存**：例如旧 `adhocValidator` 与 `@Component` 生成的 `adhocRequestValidator`，注入点按类型解析，抛 `NoUniqueBeanDefinitionException`；参数名不参与匹配。
-3. **新配置未被扫描**：配置类若脱离 `com.itzixi` 根包，抛 `NoSuchBeanDefinitionException`。
+3. **新配置未被扫描**：配置类若脱离 `com.github.yingli` 根包，抛 `NoSuchBeanDefinitionException`。
 4. **测试不报、启动才报**：单元测试手工 `new` 不经过 Spring 容器，只有 `@SpringBootTest` / IT 会暴露。因此 B2、B5 以全量测试作为门槛。
 
 ### 6.3 原子切换做法（强制）
@@ -391,7 +391,7 @@ $env:JAVA_HOME='C:\Users\LAN\.jdks\corretto-21.0.13'
 ## 七、B4 编译断点：`AdhocSqlCompiler.orEmpty()`
 
 - 现状：`orEmpty()` 是 `AdhocSqlCompiler` 的**包内可见静态方法**，`AdhocValidator` 与其同包，直接调用。
-- B4 后：`AdhocValidator` → `com.itzixi.adhoc.validate.AdhocRequestValidator`，`AdhocSqlCompiler` → `com.itzixi.adhoc.compile.AdhocSqlCompiler`，跨包后包内可见性失效，**编译失败**。
+- B4 后：`AdhocValidator` → `com.github.yingli.adhoc.validate.AdhocRequestValidator`，`AdhocSqlCompiler` → `com.github.yingli.adhoc.compile.AdhocSqlCompiler`，跨包后包内可见性失效，**编译失败**。
 - 推荐处理：在 `AdhocRequestValidator` 内复制 3 行私有 `orEmpty` helper，删除对编译器的跨类调用。理由：不为一次调用扩大编译器公开 API，也不新增 `shared/util` 兜底包。
 - 备选（不推荐）：把 `orEmpty` 改为 `public static`。会使编译器承担与 SQL 生成无关的列表空值语义，扩大 API 面。
 - 同类断点提醒（B3）：`MetricRegistryConfiguration.normalizeDomain()` 当前为包内可见，`MetricQueryService` 移包后会编译失败。因此 B3 必须先落地 `MetricDomains`，再移动 `MetricQueryService`。
@@ -509,22 +509,22 @@ B0–B5 六个批次已全部按顺序实施完成，无跳批、无合并批次
 
 ### 依赖方向复查（静态 import 扫描，覆盖 mcp-server main/test）
 
-扫描方法：读取 `src/main/java` 与 `src/test/java` 下全部 `.java` 的 `package` 声明与 `import com.itzixi.*`，按第三章三条规则逐条匹配，不凭印象判断。
+扫描方法：读取 `src/main/java` 与 `src/test/java` 下全部 `.java` 的 `package` 声明与 `import com.github.yingli.*`，按第三章三条规则逐条匹配，不凭印象判断。
 
 | 规则 | 结论 |
 |---|---|
-| 1. `com.itzixi.adhoc` 不得 import `com.itzixi.metrics` | 主代码通过；测试仅 1 处合理例外（见下） |
-| 2. `com.itzixi.metrics` 不得 import `com.itzixi.adhoc` | 通过（0 处） |
-| 3. `com.itzixi.shared` 不得依赖任何业务域 | 修复后通过（0 处） |
+| 1. `com.github.yingli.adhoc` 不得 import `com.github.yingli.metrics` | 主代码通过；测试仅 1 处合理例外（见下） |
+| 2. `com.github.yingli.metrics` 不得 import `com.github.yingli.adhoc` | 通过（0 处） |
+| 3. `com.github.yingli.shared` 不得依赖任何业务域 | 修复后通过（0 处） |
 | 4. `mcp.tool` 只依赖各域 service + request/response，不碰 compile/validate/registry/config/exception，不碰 Mapper | 主代码 2 处、测试 2 处例外；其余通过 |
 
 #### 已修复违规
 
-1. **规则三**：`shared/sql/ReadOnlySqlGuard` 原先 import `com.itzixi.metrics.exception.MetricException`，使 shared 反向依赖指标域。
-   - 改法：新增 `com.itzixi.shared.sql.SqlGuardException`，只读闸门改抛该异常；`MetricQueryService` 增加 catch 并映射回 `MetricException.Code.SQL_REJECTED`，对外错误码不变；`ReadOnlySqlGuardTest` 断言同步改为 `SqlGuardException`。
+1. **规则三**：`shared/sql/ReadOnlySqlGuard` 原先 import `com.github.yingli.metrics.exception.MetricException`，使 shared 反向依赖指标域。
+   - 改法：新增 `com.github.yingli.shared.sql.SqlGuardException`，只读闸门改抛该异常；`MetricQueryService` 增加 catch 并映射回 `MetricException.Code.SQL_REJECTED`，对外错误码不变；`ReadOnlySqlGuardTest` 断言同步改为 `SqlGuardException`。
    - 涉及文件：`shared/sql/ReadOnlySqlGuard.java`、`shared/sql/SqlGuardException.java`（新增）、`metrics/service/MetricQueryService.java`、`test/shared/sql/ReadOnlySqlGuardTest.java`。
-2. **规则一（测试）**：`adhoc/SemanticCatalogContractTest`、`adhoc/SemanticCatalogServiceTest` import `com.itzixi.metrics.MetricsFixtures`，仅用于复用契约快照工具。
-   - 改法：新增测试中立工具 `com.itzixi.contract.ContractSnapshots`（`canonicalJson/parseJson/readBaseline/assertContractBaseline/orderedMap/writeBaseline`）；`MetricsFixtures` 改为委托该类，公开方法签名保持不变；两个 adhoc 测试改依赖 `ContractSnapshots`。
+2. **规则一（测试）**：`adhoc/SemanticCatalogContractTest`、`adhoc/SemanticCatalogServiceTest` import `com.github.yingli.metrics.MetricsFixtures`，仅用于复用契约快照工具。
+   - 改法：新增测试中立工具 `com.github.yingli.contract.ContractSnapshots`（`canonicalJson/parseJson/readBaseline/assertContractBaseline/orderedMap/writeBaseline`）；`MetricsFixtures` 改为委托该类，公开方法签名保持不变；两个 adhoc 测试改依赖 `ContractSnapshots`。
    - 涉及文件：`test/contract/ContractSnapshots.java`（新增）、`test/metrics/MetricsFixtures.java`、上述两个 adhoc 测试。
 
 #### 合理例外（未硬改）

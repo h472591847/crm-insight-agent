@@ -8,7 +8,7 @@
     <packaging>jar</packaging>
 
     <parent>
-        <groupId>com.itzixi</groupId>
+        <groupId>com.github.yingli</groupId>
         <artifactId>SpringAi-MCP-RAG-Dev</artifactId>
         <version>${revision}</version>
     </parent>
@@ -22,7 +22,7 @@
     <dependencies>
         <!-- 公共资源模块（提供 classpath:logback-plus.xml） -->
         <dependency>
-            <groupId>com.itzixi</groupId>
+            <groupId>com.github.yingli</groupId>
             <artifactId>mcp-common</artifactId>
             <version>${revision}</version>
         </dependency>

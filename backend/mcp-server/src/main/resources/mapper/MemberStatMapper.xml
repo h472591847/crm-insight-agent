@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
-<mapper namespace="com.itzixi.mapper.MemberStatMapper">
+<mapper namespace="com.github.yingli.mapper.MemberStatMapper">
 
     <!--
       会员总览：仅聚合计数与累计消费，不返回任何个人信息。
@@ -16,7 +16,7 @@
       注意：子查询是全表聚合（测试库约 10 万订单可接受），生产库需复核
       expense_calendar_info(expense_mobile) 索引与耗时。
     -->
-    <select id="memberOverview" resultType="com.itzixi.entity.response.MemberOverviewResult">
+    <select id="memberOverview" resultType="com.github.yingli.entity.response.MemberOverviewResult">
         SELECT
             COUNT(*)                                                                              AS total_members,
             SUM(CASE WHEN mv.member_sex = 1 THEN 1 ELSE 0 END)                                     AS male_count,

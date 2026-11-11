@@ -10,7 +10,7 @@
         <module>mcp-server</module>
     </modules>
 
-    <groupId>com.itzixi</groupId>
+    <groupId>com.github.yingli</groupId>
     <artifactId>SpringAi-MCP-RAG-Dev</artifactId>
     <version>${revision}</version>
 

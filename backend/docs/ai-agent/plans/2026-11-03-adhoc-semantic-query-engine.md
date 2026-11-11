@@ -22,7 +22,7 @@
 - 集成测试只连 crmtest，测试类开头必须 `BaselineFixtures.assumeMatchesCurrentDb(...)`；真库基线缺失时跳过而非误报。
 - 测试命令（Git Bash）：`export JAVA_HOME="/d/Program Files/JetBrains/IntelliJ IDEA 2026.1.5/jbr" && ./mvnw test -Dtest=<类名> -pl mcp-server`（仓库根目录执行）。
 - 日志只记 SQL/参数/行数/sqlHash，不记个人级数据；不提交任何凭证。
-- 代码风格：中文 Javadoc、`@Author crm-agent`，与 `com.itzixi.metrics` 包现有类一致。
+- 代码风格：中文 Javadoc、`@Author crm-agent`，与 `com.github.yingli.metrics` 包现有类一致。
 - 每个 Task 结束时全量测试通过才提交；提交信息用 `feat(adhoc): ...` / `docs(adhoc): ...`。
 
 ## 实施后演进对齐（2026-11-03 晚，当日交付后的实现差异）
@@ -230,7 +230,7 @@ constraints:
 `AdhocFixtures.java`（测试侧真实配置加载，模式对齐 `MetricsFixtures`）：
 
 ```java
-package com.itzixi.adhoc;
+package com.github.yingli.adhoc;
 
 import org.yaml.snakeyaml.Yaml;
 
@@ -265,7 +265,7 @@ public final class AdhocFixtures {
 `SemanticRegistryTest.java`：
 
 ```java
-package com.itzixi.adhoc;
+package com.github.yingli.adhoc;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -316,7 +316,7 @@ Expected: 编译失败（SemanticRegistry 不存在）。
 - [ ] **Step 4: 实现 AdhocException**
 
 ```java
-package com.itzixi.adhoc;
+package com.github.yingli.adhoc;
 
 /**
  * @ClassName AdhocException
@@ -341,7 +341,7 @@ public class AdhocException extends RuntimeException {
 - [ ] **Step 5: 实现 SemanticRegistry**
 
 ```java
-package com.itzixi.adhoc;
+package com.github.yingli.adhoc;
 
 import org.apache.commons.lang3.StringUtils;
 
@@ -526,7 +526,7 @@ public final class SemanticRegistry {
 `AdhocRegistryConfiguration.java`（对齐 `MetricRegistryConfiguration` 的加载与日志风格）：
 
 ```java
-package com.itzixi.adhoc;
+package com.github.yingli.adhoc;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -595,13 +595,13 @@ git commit -m "feat(adhoc): 语义元数据 metadata.yaml 与 SemanticRegistry �
 - [ ] **Step 1: 写失败的校验测试**
 
 ```java
-package com.itzixi.adhoc;
+package com.github.yingli.adhoc;
 
-import com.itzixi.adhoc.model.AdhocQueryRequest;
-import com.itzixi.adhoc.model.FilterSpec;
-import com.itzixi.adhoc.model.MeasureSpec;
-import com.itzixi.adhoc.model.TimeRangeSpec;
-import com.itzixi.metrics.ColumnTypeRegistry;
+import com.github.yingli.adhoc.model.AdhocQueryRequest;
+import com.github.yingli.adhoc.model.FilterSpec;
+import com.github.yingli.adhoc.model.MeasureSpec;
+import com.github.yingli.adhoc.model.TimeRangeSpec;
+import com.github.yingli.metrics.ColumnTypeRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -813,7 +813,7 @@ Expected: 编译失败（模型类与 AdhocValidator 不存在）。
 `model/AdhocQueryRequest.java`：
 
 ```java
-package com.itzixi.adhoc.model;
+package com.github.yingli.adhoc.model;
 
 import lombok.Data;
 import lombok.ToString;
@@ -858,7 +858,7 @@ public class AdhocQueryRequest {
 `model/MeasureSpec.java`：
 
 ```java
-package com.itzixi.adhoc.model;
+package com.github.yingli.adhoc.model;
 
 import lombok.Data;
 import lombok.ToString;
@@ -899,7 +899,7 @@ public class MeasureSpec {
 `model/FilterSpec.java`：
 
 ```java
-package com.itzixi.adhoc.model;
+package com.github.yingli.adhoc.model;
 
 import lombok.Data;
 import lombok.ToString;
@@ -935,7 +935,7 @@ public class FilterSpec {
 `model/TimeRangeSpec.java`：
 
 ```java
-package com.itzixi.adhoc.model;
+package com.github.yingli.adhoc.model;
 
 import lombok.Data;
 import lombok.ToString;
@@ -967,14 +967,14 @@ public class TimeRangeSpec {
 - [ ] **Step 4: 实现 AdhocValidator**
 
 ```java
-package com.itzixi.adhoc;
+package com.github.yingli.adhoc;
 
-import com.itzixi.adhoc.model.AdhocQueryRequest;
-import com.itzixi.adhoc.model.FilterSpec;
-import com.itzixi.adhoc.model.MeasureSpec;
-import com.itzixi.adhoc.model.TimeRangeSpec;
-import com.itzixi.metrics.ColumnTypeRegistry;
-import com.itzixi.metrics.MetricsLimits;
+import com.github.yingli.adhoc.model.AdhocQueryRequest;
+import com.github.yingli.adhoc.model.FilterSpec;
+import com.github.yingli.adhoc.model.MeasureSpec;
+import com.github.yingli.adhoc.model.TimeRangeSpec;
+import com.github.yingli.metrics.ColumnTypeRegistry;
+import com.github.yingli.metrics.MetricsLimits;
 import org.apache.commons.lang3.StringUtils;
 
 import java.time.LocalDate;
@@ -1109,7 +1109,7 @@ public class AdhocValidator {
             }
 
             if ("derived".equals(type)) {
-                String err = com.itzixi.metrics.DerivedCalculator.checkFormula(m.getFormula(), outputs);
+                String err = com.github.yingli.metrics.DerivedCalculator.checkFormula(m.getFormula(), outputs);
                 if (err != null) {
                     throw invalid("派生公式非法：" + err + "（只能引用本请求中先声明的度量 alias）");
                 }
@@ -1291,14 +1291,14 @@ git commit -m "feat(adhoc): 结构化请求模型与白名单校验器"
 - [ ] **Step 1: 写失败的编译测试**
 
 ```java
-package com.itzixi.adhoc;
+package com.github.yingli.adhoc;
 
-import com.itzixi.adhoc.model.AdhocQueryRequest;
-import com.itzixi.adhoc.model.FilterSpec;
-import com.itzixi.adhoc.model.MeasureSpec;
-import com.itzixi.adhoc.model.TimeRangeSpec;
-import com.itzixi.metrics.ColumnTypeRegistry;
-import com.itzixi.metrics.GeneratedSql;
+import com.github.yingli.adhoc.model.AdhocQueryRequest;
+import com.github.yingli.adhoc.model.FilterSpec;
+import com.github.yingli.adhoc.model.MeasureSpec;
+import com.github.yingli.adhoc.model.TimeRangeSpec;
+import com.github.yingli.metrics.ColumnTypeRegistry;
+import com.github.yingli.metrics.GeneratedSql;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -1472,15 +1472,15 @@ Expected: 编译失败（AdhocSqlCompiler 不存在）。
 - [ ] **Step 3: 实现 AdhocSqlCompiler（单实体部分）**
 
 ```java
-package com.itzixi.adhoc;
+package com.github.yingli.adhoc;
 
-import com.itzixi.adhoc.model.AdhocQueryRequest;
-import com.itzixi.adhoc.model.FilterSpec;
-import com.itzixi.adhoc.model.MeasureSpec;
-import com.itzixi.adhoc.model.TimeRangeSpec;
-import com.itzixi.metrics.ColumnTypeRegistry;
-import com.itzixi.metrics.GeneratedSql;
-import com.itzixi.metrics.MetricsLimits;
+import com.github.yingli.adhoc.model.AdhocQueryRequest;
+import com.github.yingli.adhoc.model.FilterSpec;
+import com.github.yingli.adhoc.model.MeasureSpec;
+import com.github.yingli.adhoc.model.TimeRangeSpec;
+import com.github.yingli.metrics.ColumnTypeRegistry;
+import com.github.yingli.metrics.GeneratedSql;
+import com.github.yingli.metrics.MetricsLimits;
 import org.apache.commons.lang3.StringUtils;
 
 import java.nio.charset.StandardCharsets;
@@ -1904,13 +1904,13 @@ git commit -m "feat(adhoc): 跨实体 LEFT JOIN 编译（关系白名单 + joinF
 - [ ] **Step 1: 写失败的服务测试（mock SqlExecutor，不连库）**
 
 ```java
-package com.itzixi.adhoc;
+package com.github.yingli.adhoc;
 
-import com.itzixi.adhoc.model.AdhocQueryRequest;
-import com.itzixi.adhoc.model.AdhocResult;
-import com.itzixi.adhoc.model.MeasureSpec;
-import com.itzixi.metrics.ColumnTypeRegistry;
-import com.itzixi.metrics.SqlExecutor;
+import com.github.yingli.adhoc.model.AdhocQueryRequest;
+import com.github.yingli.adhoc.model.AdhocResult;
+import com.github.yingli.adhoc.model.MeasureSpec;
+import com.github.yingli.metrics.ColumnTypeRegistry;
+import com.github.yingli.metrics.SqlExecutor;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -2030,7 +2030,7 @@ Expected: 编译失败（AdhocQueryService/AdhocResult 不存在）。
 `model/AdhocResult.java`：
 
 ```java
-package com.itzixi.adhoc.model;
+package com.github.yingli.adhoc.model;
 
 import java.util.List;
 import java.util.Map;
@@ -2059,14 +2059,14 @@ public record AdhocResult(String errorCode,
 `AdhocQueryService.java`：
 
 ```java
-package com.itzixi.adhoc;
+package com.github.yingli.adhoc;
 
-import com.itzixi.adhoc.model.AdhocQueryRequest;
-import com.itzixi.adhoc.model.AdhocResult;
-import com.itzixi.adhoc.model.MeasureSpec;
-import com.itzixi.metrics.DerivedCalculator;
-import com.itzixi.metrics.GeneratedSql;
-import com.itzixi.metrics.SqlExecutor;
+import com.github.yingli.adhoc.model.AdhocQueryRequest;
+import com.github.yingli.adhoc.model.AdhocResult;
+import com.github.yingli.adhoc.model.MeasureSpec;
+import com.github.yingli.metrics.DerivedCalculator;
+import com.github.yingli.metrics.GeneratedSql;
+import com.github.yingli.metrics.SqlExecutor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -2210,14 +2210,14 @@ git commit -m "feat(adhoc): AdhocQueryService 编排与派生度量 Java 补值"
 - [ ] **Step 1: 写失败的工具测试**
 
 ```java
-package com.itzixi.adhoc;
+package com.github.yingli.adhoc;
 
-import com.itzixi.adhoc.model.AdhocQueryRequest;
-import com.itzixi.adhoc.model.AdhocResult;
-import com.itzixi.adhoc.model.MeasureSpec;
-import com.itzixi.mcp.tool.AdhocTool;
-import com.itzixi.metrics.ColumnTypeRegistry;
-import com.itzixi.metrics.SqlExecutor;
+import com.github.yingli.adhoc.model.AdhocQueryRequest;
+import com.github.yingli.adhoc.model.AdhocResult;
+import com.github.yingli.adhoc.model.MeasureSpec;
+import com.github.yingli.mcp.tool.AdhocTool;
+import com.github.yingli.metrics.ColumnTypeRegistry;
+import com.github.yingli.metrics.SqlExecutor;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -2300,15 +2300,15 @@ Expected: 编译失败（AdhocTool 不存在）。
 - [ ] **Step 3: 实现 AdhocTool**
 
 ```java
-package com.itzixi.mcp.tool;
+package com.github.yingli.mcp.tool;
 
-import com.itzixi.adhoc.AdhocQueryService;
-import com.itzixi.adhoc.AdhocSqlCompiler;
-import com.itzixi.adhoc.AdhocException;
-import com.itzixi.adhoc.SemanticRegistry;
-import com.itzixi.adhoc.model.AdhocQueryRequest;
-import com.itzixi.adhoc.model.AdhocResult;
-import com.itzixi.metrics.GeneratedSql;
+import com.github.yingli.adhoc.AdhocQueryService;
+import com.github.yingli.adhoc.AdhocSqlCompiler;
+import com.github.yingli.adhoc.AdhocException;
+import com.github.yingli.adhoc.SemanticRegistry;
+import com.github.yingli.adhoc.model.AdhocQueryRequest;
+import com.github.yingli.adhoc.model.AdhocResult;
+import com.github.yingli.metrics.GeneratedSql;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.tool.annotation.Tool;
@@ -2430,16 +2430,16 @@ git commit -m "feat(adhoc): adhocQuery/listSemanticCatalog/explainAdhoc 三个 M
 - [ ] **Step 1: 写对账测试（每个断言都成对：固化指标 + Ad-hoc 等价请求）**
 
 ```java
-package com.itzixi.adhoc;
+package com.github.yingli.adhoc;
 
-import com.itzixi.adhoc.model.AdhocQueryRequest;
-import com.itzixi.adhoc.model.AdhocResult;
-import com.itzixi.adhoc.model.FilterSpec;
-import com.itzixi.adhoc.model.MeasureSpec;
-import com.itzixi.entity.request.MetricQueryRequest;
-import com.itzixi.entity.response.MetricResult;
-import com.itzixi.metrics.BaselineFixtures;
-import com.itzixi.metrics.MetricQueryService;
+import com.github.yingli.adhoc.model.AdhocQueryRequest;
+import com.github.yingli.adhoc.model.AdhocResult;
+import com.github.yingli.adhoc.model.FilterSpec;
+import com.github.yingli.adhoc.model.MeasureSpec;
+import com.github.yingli.entity.request.MetricQueryRequest;
+import com.github.yingli.entity.response.MetricResult;
+import com.github.yingli.metrics.BaselineFixtures;
+import com.github.yingli.metrics.MetricQueryService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -2576,7 +2576,7 @@ class AdhocReconciliationIT {
         r.setEntities(List.of("order", "member"));
         r.setDimensions(List.of("ORDER_GENDER"));
         r.setMeasures(List.of(spec("simple", "SALES", null, "sales", null)));
-        com.itzixi.adhoc.model.TimeRangeSpec t = new com.itzixi.adhoc.model.TimeRangeSpec();
+        com.github.yingli.adhoc.model.TimeRangeSpec t = new com.github.yingli.adhoc.model.TimeRangeSpec();
         t.setEntity("order");
         t.setTimeDimension("BUY_DATE");
         t.setStartDate("2026-06-01");
@@ -2669,7 +2669,7 @@ git commit -m "test(adhoc): Ad-hoc 与固化指标真库交叉对账（VIP 快�
 
 - [ ] **Step 4: PROJECT_CONTEXT.md 更新**
 
-"已知能力"追加一行：Ad-hoc 自助分析工具（adhocQuery/listSemanticCatalog/explainAdhoc），事实来源 semantic/metadata.yaml；"关键文件"清单补 `mcp-server/src/main/resources/semantic/metadata.yaml` 与 `com.itzixi.adhoc` 包路径。
+"已知能力"追加一行：Ad-hoc 自助分析工具（adhocQuery/listSemanticCatalog/explainAdhoc），事实来源 semantic/metadata.yaml；"关键文件"清单补 `mcp-server/src/main/resources/semantic/metadata.yaml` 与 `com.github.yingli.adhoc` 包路径。
 
 - [ ] **Step 5: 全量回归 + Commit**
 

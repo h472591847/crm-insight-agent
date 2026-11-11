@@ -335,7 +335,7 @@ private static String extractString(String json, String field) {
 ### RedisLockUtils（Redisson 分布式锁声明式封装）
 
 ```java
-package com.itzixi.utils;
+package com.github.yingli.utils;
 
 import org.redisson.api.RLock;
 import org.redisson.api.RedissonClient;
@@ -381,7 +381,7 @@ interface ThrowingRunnable {
 ### RedisHelper（StringRedisTemplate 通用操作）
 
 ```java
-package com.itzixi.utils;
+package com.github.yingli.utils;
 
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
@@ -424,7 +424,7 @@ public class RedisHelper {
 ### RedissonConfig（手动初始化 RedissonClient，不覆盖 RedisConnectionFactory）
 
 ```java
-package com.itzixi.config;
+package com.github.yingli.config;
 
 import org.redisson.Redisson;
 import org.redisson.api.RedissonClient;

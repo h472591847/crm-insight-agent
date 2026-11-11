@@ -172,7 +172,7 @@
 按 `PHASE2_METRICS_LAYER_TECH_PLAN.md` 落地 M1~M3：实现 Metrics-as-Code 框架（配置模型/加载校验/SQL 编译/受限执行/派生计算），把 Phase 1 三个手写工具迁移为 YAML 驱动，并完成与旧手写 Mapper 的真库逐值对账。
 
 ### 已完成事项
-- **M1 框架层**（`com.itzixi.metrics`，14 个类）：`MetricDefinition`/`MetricDefinitionParser`（SnakeYAML SafeConstructor）/`MetricRegistry`/`MetricRegistryConfiguration`/`MetricDefinitionValidator`/`ColumnTypeRegistry`/`SqlCompiler`/`GeneratedSql`/`QueryPlan`/`QueryPlanValidator`/`DerivedCalculator`（四则运算白名单递归解析）/`SqlExecutor`（JdbcTemplate，maxRows=2000 + queryTimeout=10s + `MAX_EXECUTION_TIME` hint）/`MetricException`/`MetricsLimits`。
+- **M1 框架层**（`com.github.yingli.metrics`，14 个类）：`MetricDefinition`/`MetricDefinitionParser`（SnakeYAML SafeConstructor）/`MetricRegistry`/`MetricRegistryConfiguration`/`MetricDefinitionValidator`/`ColumnTypeRegistry`/`SqlCompiler`/`GeneratedSql`/`QueryPlan`/`QueryPlanValidator`/`DerivedCalculator`（四则运算白名单递归解析）/`SqlExecutor`（JdbcTemplate，maxRows=2000 + queryTimeout=10s + `MAX_EXECUTION_TIME` hint）/`MetricException`/`MetricsLimits`。
 - **M2 配置层**：`resources/metrics/member.yaml`（MEMBER_OVERVIEW）、`order.yaml`（STATION_SALES、PRODUCT_RANKING）、`column-types.yaml`（表白名单 + VARCHAR 数值列 + PII 黑名单）。`MetricQueryService` 统一编排：解析→校验→编译→受限执行→派生计算→合计行（withTotalRow 时另发 compileTotals 全量聚合，杜绝 TopN 合计冒充总体）。
 - **M3 工具层**：新增域工具 `MetricTool`（`queryMemberMetric`/`queryOrderMetric`/`listMetrics`/`explainMetric`）并注册进 `ToolConfiguration`；**重写 `CrmAnalyticsTool`**：三个旧 @Tool 签名与返回 DTO 完全不变，内部委托编译层（迁移过渡期兼容旧调用方）。
 - STATION_SALES 显式配 `limitDefault: 500 / limitMax: 2000`：Phase 1 无 LIMIT 且实测 228 组，若用默认 100 会截断破坏对账（已在配置注释说明）。
@@ -758,9 +758,9 @@ Step 0 只读探测新增事实（生日只输出粗粒度计数，不输出生�
 7. **交付文档**（Task 8，本条目）：四份文档更新（见下）。
 
 ### 修改文件
-- 主代码：`com.itzixi.adhoc` 包 11 个文件（`SemanticRegistry`/`AdhocValidator`/`AdhocSqlCompiler`/`AdhocQueryService`/`AdhocException`/`AdhocRegistryConfiguration` + `model` 下 5 个）+ `com.itzixi.mcp.tool.AdhocTool`
+- 主代码：`com.github.yingli.adhoc` 包 11 个文件（`SemanticRegistry`/`AdhocValidator`/`AdhocSqlCompiler`/`AdhocQueryService`/`AdhocException`/`AdhocRegistryConfiguration` + `model` 下 5 个）+ `com.github.yingli.mcp.tool.AdhocTool`
 - 配置：`mcp-server/src/main/resources/semantic/metadata.yaml`（新增）
-- 测试：`com.itzixi.adhoc` 包 7 个文件（6 个测试类 + `AdhocFixtures`）
+- 测试：`com.github.yingli.adhoc` 包 7 个文件（6 个测试类 + `AdhocFixtures`）
 - 文档：`docs/ai-agent/BUSINESS_METRICS.md`（新增 §十）、`SUPPORTED_METRICS.md`（新增"五、Ad-hoc 自助分析"）、`docs/ai-agent/PROJECT_CONTEXT.md`（已知能力 + 关键文件）、本日志
 
 ### 架构或技术决策
@@ -1480,7 +1480,7 @@ location /crmAgent-api/ {
    - Lombok 注解处理器 1.18.24 → 1.18.46，修复 JDK 21 下 `NoSuchFieldError: JCImport.qualid`。
 4. **日志**
    - `logback-plus.xml` 改名 `logback-spring.xml` 并移入 `mcp-common`；用 `<springProperty>` 读取 `spring.application.name`，日志目录 `${LOG_PATH}/${APP_NAME}`，`LOG_PATH` 默认 `./logs`；滚动策略补 `totalSizeCap`。
-   - 两模块 `application.yml` 的 `logging.config` 同步指向 `classpath:logback-spring.xml`，包级别改为 `com.itzixi: @logging.level@`。
+   - 两模块 `application.yml` 的 `logging.config` 同步指向 `classpath:logback-spring.xml`，包级别改为 `com.github.yingli: @logging.level@`。
 
 ### 修改文件（后端仓库）
 - `pom.xml`、`mcp-client/pom.xml`、`mcp-server/pom.xml`

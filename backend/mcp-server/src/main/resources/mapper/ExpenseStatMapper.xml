@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
-<mapper namespace="com.itzixi.mapper.ExpenseStatMapper">
+<mapper namespace="com.github.yingli.mapper.ExpenseStatMapper">
 
     <!--
       门店业绩：仅统计订单头表 expense_calendar_info（1 单 1 行），规避与明细联查的重复累计。
@@ -9,7 +9,7 @@
       时间左闭右开：>= startDate AND < endDate+1day。客单价由服务端计算。
     -->
     <select id="stationPerformance"
-            resultType="com.itzixi.entity.response.StationPerformanceResult$StationStat">
+            resultType="com.github.yingli.entity.response.StationPerformanceResult$StationStat">
         SELECT
             expense_stationCode                                                        AS station_code,
             MAX(expense_stationName)                                                   AS station_name,
@@ -36,7 +36,7 @@
       ORDER BY 使用 choose 白名单，禁止外部直传列名，避免注入。
     -->
     <select id="productRanking"
-            resultType="com.itzixi.entity.response.ProductRankingResult$ProductStat">
+            resultType="com.github.yingli.entity.response.ProductRankingResult$ProductStat">
         SELECT
             expense_d_gdcode                                                          AS sku,
             MAX(expense_d_commName)                                                   AS product_name,

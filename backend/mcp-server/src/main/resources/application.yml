@@ -32,7 +32,7 @@ spring:
 # 日志配置
 logging:
   level:
-    com.itzixi: @logging.level@
+    com.github.yingli: @logging.level@
     org.springframework: warn
     org.mybatis.spring.mapper: error
   config: classpath:logback-spring.xml
