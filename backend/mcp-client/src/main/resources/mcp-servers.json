@@ -1,0 +1,13 @@
+{
+  "_comment": "stdio MCP server 示例配置（application-*.yml 中 spring.ai.mcp.client.stdio.servers-configuration 指向本文件）。默认关闭。JSON 不支持环境变量展开：启用前需手动把 ${MCP_FILESYSTEM_DIR} 改为本机已存在的目录；Windows 下 command 可能需要 npx.cmd。",
+  "mcpServers": {
+    "filesystem": {
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-filesystem",
+        "${MCP_FILESYSTEM_DIR}"
+      ],
+      "command": "npx"
+    }
+  }
+}

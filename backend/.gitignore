@@ -1,0 +1,65 @@
+target/
+!.mvn/wrapper/maven-wrapper.jar
+!**/src/main/**/target/
+!**/src/test/**/target/
+
+### IntelliJ IDEA ###
+.idea/
+*.iws
+*.iml
+*.ipr
+
+### Eclipse ###
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings
+.springBeans
+.sts4-cache
+
+### NetBeans ###
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+build/
+!**/src/main/**/build/
+!**/src/test/**/build/
+
+### VS Code ###
+.vscode/
+
+### Mac OS ###
+.DS_Store
+
+### Docker Volumes ###
+scripts/docker/volumes/
+
+### Secrets / 环境凭证（一律不入库） ###
+**/.env
+.env_kimi*
+*.rdb
+
+### Project ###
+mcp-server/src/main/resources/.env
+mcp-client/src/main/resources/.env
+
+### Mock 数据生成产物（可由生成器重建，不入库） ###
+mock-data/init/
+
+### 构建产物 / 运行日志 ###
+# flatten-maven-plugin 在每个模块目录生成（根 pom 已启用），属构建产物，不入库
+.flattened-pom.xml
+# logback 运行日志目录（LOG_PATH 默认 ./logs，按 spring.application.name 分子目录）
+# 仅匹配名为 logs 的目录，不影响 src/main/resources 等源码目录
+logs/
+
+### 对账基线数值 ###
+# crmtest-baseline.yaml 已于 2026-10-30 由用户确认**故意入库**：真库对账测试需要它才能跑，
+# 不入库会导致新人克隆后测试直接报错、CI 无法复现。
+# 因此这里**不设忽略规则**，也不要加上。
+# 约束：文件只允许存放聚合数值与门店/商品名，禁止写入任何个人级字段（生日、手机号、地址）、
+# 凭证与完整查询结果（AGENTS.md 第八节）；重新体检用 python scripts/probe/step0_baseline_full.py，
+# 重生成后需与口径变更同一提交入库，方便对数变化与口径变化对齐。

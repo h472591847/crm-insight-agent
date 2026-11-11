@@ -1,0 +1,57 @@
+name: SpringAi-MCP-RAG-Dev
+
+services:
+  redis-stack:
+    image: redis/redis-stack:latest
+    container_name: redis-stack-local
+    ports:
+      - "9379:6379"   # Redis 默认端口
+      - "8001:8001"   # RedisInsight 可视化界面端口
+    volumes:
+      - ./volumes/docker/redis-stack/data:/data
+    # 核心修改：通过 environment 设置 Redis 密码
+    environment:
+      - REDIS_ARGS=--requirepass 123456
+    restart: always
+
+  core:
+    container_name: searxng-core
+    image: docker.io/searxng/searxng:${SEARXNG_VERSION:-latest}
+    restart: always
+    ports:
+      - "6080:8080"
+    # .env 不入库：首次使用请先执行 `cp .env.example .env`
+    env_file: .env
+    volumes:
+      - ./volumes/docker/searxng/core-config:/etc/searxng/:Z
+      - ./volumes/docker/searxng/core-data:/var/cache/searxng/
+
+  valkey:
+    container_name: searxng-valkey
+    image: docker.io/valkey/valkey:9-alpine
+    command: valkey-server --save 30 1 --loglevel warning
+    restart: always
+    volumes:
+      - ./volumes/docker/searxng/valkey-data:/data/
+  mysql:
+    image: mysql:8.0.24
+    container_name: dev_mysql
+    ports:
+      - "3336:3306"
+    healthcheck:
+      test: [ "CMD", "mysqladmin" ,"ping", "-h", "localhost" ]
+      interval: 5s
+      timeout: 10s
+      retries: 10
+    environment:
+      MYSQL_ROOT_PASSWORD: "123456"
+      # 允许任何人使用root用户访问
+      MYSQL_ROOT_HOST: "%"
+      # 自动创建业务库（与 mcp-server 数据源默认库名一致）
+      MYSQL_DATABASE: "crmtest"
+    restart: always
+    volumes:
+      - "./volumes/docker/mysql:/var/lib/mysql"
+      # 首次初始化时自动建表并导入 Mock 数据（mock-data/generate_mock_data.py 生成）
+      # 注意：MySQL 仅在数据卷为空的首次启动时执行 initdb 目录脚本
+      - "../mock-data/init:/docker-entrypoint-initdb.d:ro"

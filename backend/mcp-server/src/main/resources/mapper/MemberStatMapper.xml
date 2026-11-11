@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.itzixi.mapper.MemberStatMapper">
+
+    <!--
+      会员总览：仅聚合计数与累计消费，不返回任何个人信息。
+      2026-11-02 口径变更：数据源从 member_info 切换为 member_info_view。
+      2026-11-09 口径变更：累计消费不再取会员视图快照字段 member_expense_totalsum，
+      改按 expense_calendar_info.expense_realamt（订单头实付）聚合：
+        1) 子查询先按手机号把订单头聚成"每个会员一笔总额"，再 join 回会员视图，
+           保证 1:1 不乘行、金额不重复累计；
+        2) 有效订单 expense_state='10' AND del_flag='0'，退单负行自然抵消；
+        3) LEFT JOIN 不过滤未匹配手机号的订单，但未匹配的会员行不会贡献金额，
+           即"会员消费"只算能关联到会员的订单。
+      注意：子查询是全表聚合（测试库约 10 万订单可接受），生产库需复核
+      expense_calendar_info(expense_mobile) 索引与耗时。
+    -->
+    <select id="memberOverview" resultType="com.itzixi.entity.response.MemberOverviewResult">
+        SELECT
+            COUNT(*)                                                                              AS total_members,
+            SUM(CASE WHEN mv.member_sex = 1 THEN 1 ELSE 0 END)                                     AS male_count,
+            SUM(CASE WHEN mv.member_sex = 2 THEN 1 ELSE 0 END)                                     AS female_count,
+            SUM(CASE WHEN mv.member_sex IS NULL OR mv.member_sex NOT IN (1, 2) THEN 1 ELSE 0 END)   AS unknown_count,
+            SUM(CASE WHEN exp.total_amount &gt; 0 THEN 1 ELSE 0 END)                               AS expense_member_count,
+            COALESCE(SUM(exp.total_amount), 0)                                                     AS total_expense_amount
+        FROM member_info_view mv
+        LEFT JOIN (
+            SELECT e.expense_mobile AS mobile,
+                   SUM(CAST(NULLIF(TRIM(e.expense_realamt), '') AS DECIMAL(20, 2))) AS total_amount
+            FROM expense_calendar_info e
+            WHERE e.expense_state = '10'
+              AND e.del_flag = '0'
+              AND e.expense_mobile IS NOT NULL
+            GROUP BY e.expense_mobile
+        ) exp ON exp.mobile = mv.member_mobile
+        WHERE mv.del_flag = 0
+        <if test="tenant != null and tenant != ''">
+            AND mv.member_tenant = #{tenant}
+        </if>
+        <if test="station != null and station != ''">
+            AND mv.member_allot_store = #{station}
+        </if>
+    </select>
+
+</mapper>

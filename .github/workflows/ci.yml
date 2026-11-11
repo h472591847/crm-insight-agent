@@ -1,0 +1,57 @@
+name: CI
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+    branches: [master, main]
+
+jobs:
+  backend-tests:
+    name: Backend · mcp-server tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: corretto
+          java-version: '21'
+          cache: maven
+
+      - name: Run tests
+        # 默认排除 8 个依赖真实 CRM 测试库的集成/对账用例（见 backend/pom.xml surefire excludes）
+        run: ./mvnw -B -pl mcp-server -am test
+
+      - name: Publish test summary
+        uses: mikepenz/action-junit-report@v4
+        if: always()
+        with:
+          report_paths: 'backend/**/target/surefire-reports/TEST-*.xml'
+          check_name: Backend Tests
+
+  frontend-build:
+    name: Frontend · build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build

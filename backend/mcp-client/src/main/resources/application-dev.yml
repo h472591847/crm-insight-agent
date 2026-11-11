@@ -1,0 +1,35 @@
+server:
+  port: 9090
+website:
+  # 前端域名
+  domain: http://localhost:9173
+internet:
+  websearch:
+    searxng:
+      url: http://localhost:6080/search
+      counts: 25
+spring:
+  ai:
+    mcp:
+      client:
+        enabled: true
+        name: spring-ai-mcp-client
+        type: async
+        # 默认 20s 会先于服务端 60s 查询上限掐断请求。
+        # adhocQueryBatch 单次调用串行执行最多 5 块，每块兜底 65s，故按 5×65s+余量对齐。
+        request-timeout: 340s
+        sse:
+          connections:
+#            ModelScope 的临时 SSE 地址如果已过期会返回 410 Gone，导致 MCP Client 启动/初始化工具失败。
+#            如需使用外部 MCP 服务，请替换为仍然有效的 url 与 sse-endpoint 后再启用。
+#            server1:
+#              url: https://mcp.api-inference.modelscope.net
+#              sse-endpoint: /1a39f528df3d44/sse
+            server2:
+              url: http://localhost:9060
+              sse-endpoint: /sse
+        stdio:
+          # 关掉：stdio MCP 用 npx 跑文件系统服务，生产/测试环境都不需要
+          enabled: false
+#        stdio:
+#          servers-configuration: classpath:mcp-servers.json

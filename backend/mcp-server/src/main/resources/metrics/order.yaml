@@ -1,0 +1,119 @@
+# 订单域指标（口径来源：DEVELOPMENT_LOG 2026-10-28 业务已确认，与 Phase 1 手写 SQL 等价）
+- metric: STATION_SALES
+  title: 门店销售业绩
+  domain: order
+  status: CONFIRMED
+  caliber: "订单头表 1 单 1 行；expense_state='10' AND del_flag='0'；金额取实付 expense_realamt（VARCHAR，退单为负数行，SUM 自然抵消）；
+  时间左闭右开含结束日；可按门店限定范围，不支持租户（2026-10-30 业务决策取消：expense_tenant 61.6% 为空）"
+  table: expense_calendar_info
+  grain: ORDER_HEAD
+  timeColumn: expense_buyDate
+  baselineFilters:
+    - "expense_state = '10'"
+    - "del_flag = '0'"
+  dimensions:
+    - { code: STATION, expr: expense_stationCode, alias: station_code }
+  attributes:
+    - { expr: expense_stationName, alias: station_name, agg: MAX }
+  measures:
+    - { code: SALES,  expr: "NUM(expense_realamt)", agg: SUM, alias: sales_amount, unit: CNY, zeroFill: true, decimalScale: 2 }
+    - { code: ORDERS, expr: "*",                    agg: COUNT, alias: order_count, unit: COUNT }
+  optionalFilters:
+    - { code: STATION, column: expense_stationCode }
+  derived:
+    - { code: AVG_ORDER_VALUE, formula: "SALES / ORDERS", scale: 2, unit: CNY }
+  sortable: [ SALES, ORDERS ]
+  defaultSortBy: SALES
+  defaultSortDir: desc
+  # Phase 1 门店业绩无 LIMIT（实测 228 个分组），迁移期保持"默认返回全部分组"的行为
+  limitDefault: 500
+  limitMax: 2000
+  withTotalRow: true
+  nullDimensionLabel: 未知门店
+
+- metric: PRODUCT_RANKING
+  title: 商品销售排行
+  domain: order
+  status: CONFIRMED
+  caliber: "基于消费明细表按 SKU=expense_d_gdcode 聚合；expense_d_state='10' AND del_flag='0'；
+  实付金额与销量均为 VARCHAR，走 NUM() 安全转换；SKU 无品牌字段；异常编码（如 198.0/298.0/99.0，商品名分别为 198plus 等）按真实商品统计，不过滤也不合并（2026-10-30 业务确认；
+  真实库窗口内 198.0 共 12,021 行、销售额 238 万元，排第 5 名）；不支持租户（明细表无租户字段，且 2026-10-30 全局取消）；
+  时间跨度上限 92 天：真实库实测单月窗口 1.2s 可返回，18 个月 75.8s（加 FORCE INDEX 仍 14.2s），超执行层 10s 上限；根因为窗口变大后优化器改为走 index_state ref（估算 775 万行 + temporary + filesort）；
+  金额口径按 CRM 源码：商品维度统计用明细行实付 expense_d_realamt（与本指标同列），整单优惠/抹零如何分摊到明细行 CRM 无分摊逻辑，不能与订单头实付 expense_realamt 直接等同"
+  table: expense_calendar_details
+  grain: ORDER_DETAIL
+  timeColumn: expense_d_buyDate
+  baselineFilters:
+    - "expense_d_state = '10'"
+    - "del_flag = '0'"
+  dimensions:
+    - { code: SKU, expr: expense_d_gdcode, alias: sku }
+  attributes:
+    - { expr: expense_d_commName,     alias: product_name,  agg: MAX }
+    - { expr: expense_d_commCodeName, alias: category_name, agg: MAX }
+  measures:
+    - { code: SALES, expr: "NUM(expense_d_realamt)", agg: SUM, alias: sales_amount, unit: CNY, zeroFill: true, decimalScale: 2 }
+    - { code: QTY,   expr: "NUM(expense_d_qty)",     agg: SUM, alias: quantity,     unit: PCS, zeroFill: true, decimalScale: 4 }
+  optionalFilters:
+    - { code: STATION, column: expense_d_stationCode }
+  derived: [ ]
+  sortable: [ SALES, QTY ]
+  defaultSortBy: SALES
+  defaultSortDir: desc
+  limitDefault: 10
+  limitMax: 100
+  withTotalRow: false
+  # 指标级时间跨度上限（2026-10-30）：明细表 1529 万行，长窗口必超时；缺省窗口也收敛到本上限（3 个月）
+  maxRangeDays: 92
+  defaultWindowMonths: 3
+
+- metric: GENDER_CONSUMPTION_COMPARE
+  title: 男女消费对比
+  domain: order
+  status: CONFIRMED
+  caliber: "回答‘男的买的多还是女的买的多’：订单头按会员性别分组对比，主口径=实付销售额 SALES，同屏输出订单数/有消费人数/组内销售额占比；
+  有效订单 expense_state='10' AND del_flag='0'（与 STATION_SALES 同源全局口径，退单负行自然抵消）；
+  性别取自关联会员表 member_sex（1=男/2=女，其余统一归‘未知性别’组；枚举 0 含义仍待确认，归入缺失组）；
+  关联键 expense_mobile=member_mobile（实测 member_mobile 全表唯一→1:1 不乘行、金额不重复累计）；
+  订单手机号未注册为会员的仍计入对应订单（LEFT JOIN 不丢单）；
+  【2026-10-30 业务确认】未关联到会员的订单与‘匹配到会员但性别缺失’合并为同一桶、统一标‘未知性别’（依 §1.5 #9 小酒喔所有消费均计会员消费，不单独拆‘未匹配会员’）；
+  缺省窗口近一年半（全局看板默认）；不支持租户（2026-10-30 取消）；三度量口径（实付/订单数/去重买家）由开发侧代拟，业务复核前若口径有出入以业务答复为准并更新本段"
+  table: expense_calendar_info
+  # 路线 C（2026-10-30）：受控 LEFT JOIN 会员表取性别维度；join 存在时所有列引用必须带限定符（两表同名 del_flag 不限定则 MySQL 报 ambiguous）
+  # 2026-11-02 口径变更：JOIN 表从 member_info 切换为 member_info_view
+  join:
+    table: member_info_view
+    alias: m
+    mainAlias: e
+    # 注意：键必须加引号！SnakeYAML（YAML 1.1）会把未引号的 on 解析成布尔值 true，
+    # 导致 map.get("on") 拿不到值、解析报“缺失字段”
+    "on": "e.expense_mobile = m.member_mobile"
+  grain: ORDER_HEAD
+  timeColumn: e.expense_buyDate
+  baselineFilters:
+    - "e.expense_state = '10'"
+    - "e.del_flag = '0'"
+    # 已删会员的订单保留并落‘未知性别’组（不让删单静默丢金额）；括号防 OR 优先级越界
+    - "(m.del_flag = '0' OR m.member_mobile IS NULL)"
+  dimensions:
+    - code: GENDER
+      alias: gender
+      # member_sex 为 int；LEFT JOIN 无匹配或未删会员性别非 1/2 均统一落‘未知性别’组（2026-10-30 业务确认合桶不拆）
+      expr: "CASE WHEN m.member_sex = 1 THEN '男' WHEN m.member_sex = 2 THEN '女' ELSE '未知性别' END"
+  attributes: [ ]
+  measures:
+    - { code: SALES,  expr: "NUM(e.expense_realamt)",          agg: SUM,   alias: sales_amount, unit: CNY, zeroFill: true, decimalScale: 2 }
+    - { code: ORDERS, expr: "*",                                agg: COUNT, alias: order_count, unit: COUNT }
+    - { code: BUYERS, expr: "DISTINCT e.expense_mobile",        agg: COUNT, alias: buyer_count, unit: COUNT }
+  optionalFilters:
+    - { code: STATION, column: e.expense_stationCode }
+  derived: [ ]
+  # 注：不做 SALES_SHARE 派生——DerivedCalculator 只能单行内四则运算，跨组占比需先合计再分摊，
+  # 该比较由模型基于三行结果完成（服务端已给准确分子分母级原始值，不违反“模型不算数”的是非边界：
+  # 份额心算不在确定性工具内，若业务要求精确占比展示，后续按“合计行分摊”框架能力再加）
+  sortable: [ SALES, ORDERS, BUYERS ]
+  defaultSortBy: SALES
+  defaultSortDir: desc
+  limitDefault: 10
+  limitMax: 100
+  withTotalRow: true

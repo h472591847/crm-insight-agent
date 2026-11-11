@@ -1,0 +1,79 @@
+# 列类型 / PII 登记表（依据 docs/ai-agent/DATABASE_SCHEMA.md 原始 DDL 登记，不凭字段名猜测）
+# 用途：
+# 1. tables 的键集合同时充当表白名单，未登记的表不允许任何指标引用；
+# 2. varcharNumeric：VARCHAR 且语义为数值的列，聚合必须走 NUM()，否则配置校验失败；
+# 3. piiColumns：个人信息列，禁止作为维度/描述列输出（列名按小写比对）；
+# 4. piiComputeAllowedColumns：piiColumns 的子集——允许作为聚合/分桶表达式的**计算输入**
+#    （如由生日 CASE 分桶、COUNT(DISTINCT mobile) 计数），但仍禁止任何形态的原值输出，
+#    校验器在 PII 命中处统一裁决；新增条目必须逐个 code review。
+
+piiColumns:
+  # member_info
+  # member_name：2026-11-10 起开放为 adhoc 过滤列（对齐 CRM 列表页 memberName 的 LIKE '%值%' 包含匹配），
+  # 但仍属 PII：禁止任何形态的原值输出（不得作维度分组、不得在回答中出现姓名）
+  - member_name
+  - member_mobile
+  - member_address
+  - member_cardno
+  - member_yin_birthday
+  - member_yang_birthday
+  - usermobile
+  - contact_address
+  - contact_address1
+  - contact_address2
+  - wechat_id
+  - account_manager_phone
+  - spouse_birthday
+  - spouse_company
+  - children_birthday
+  - children_school
+  # expense_calendar_info
+  - expense_mobile
+  - usercode
+  - username
+  # expense_calendar_details
+  - expense_d_mobile
+
+# PII 中允许参与计算（不可原值输出）的列，是 piiColumns 的子集：
+# - member_yang_birthday：年龄分布按生日分桶（2026-10-29 口径；真实库该列 100% 为空，已不再参与计算，
+#   但保留登记以免后续回退时需要重新 review）；
+# - member_yin_birthday：2026-10-30 业务确认改用阴历生日算年龄（阳历全空）。它是 varchar(200)，
+#   必须在表达式内经 STR_TO_DATE 解析后才能参与日期运算；仍禁止原值输出；
+# - expense_mobile：活跃会员/年均消费按手机号去重计数（2026-10-29 口径：所有消费均计会员消费，
+#   指标只输出 COUNT(DISTINCT) 结果，不回显手机号）；
+# - member_mobile：仅作为 join 关联键参与行匹配（2026-10-30 路线 C：订单表按会员性别分组，
+#   ON expense_mobile = member_mobile；实测 member_mobile 全表唯一 628,527=628,527，1:1 关联不乘行）；
+#   仍禁止任何形态的原值输出。
+# - expense_d_mobile：2026-11-03 业务授权——明细表与会员/订单贯穿关联（JOIN 键、定向条件）
+#   及 COUNT(DISTINCT) 购买人数；仍禁止任何形态的原值输出，且明细行查询受实体级 queryGuard
+#   约束（必须带时间≤92天/手机号/流水号之一）。
+piiComputeAllowedColumns:
+  - member_yang_birthday
+  - member_yin_birthday
+  - expense_mobile
+  - member_mobile
+  - expense_d_mobile
+
+tables:
+  expense_calendar_info:
+    varcharNumeric:
+      - expense_stdtotal
+      - expense_realamt
+      - expense_reccnt
+      - gross_margin
+  expense_calendar_details:
+    varcharNumeric:
+      - expense_d_stdtotal
+      - expense_d_realamt
+      - expense_d_qty
+      - expense_d_scrprice
+  member_info:
+    # 数值字段（member_expense_totalsum 等）均为 decimal/int，无 VARCHAR 数值列
+    varcharNumeric: []
+  member_info_view:
+    # member_info_view 由触发器从 member_info 同步，结构一致
+    # 数值字段均为 decimal/int，无 VARCHAR 数值列
+    # 2026-11-10 按 CRM 源码对齐：member_info_view 即 CRM 会员信息列表页口径
+    # （findList FROM member_info_view，固定条件仅 del_flag='0'）；它是 member_info 行更新后
+    # 由触发器 ff_update_member_info_view 同步的物理表，不是 SQL 视图
+    varcharNumeric: []

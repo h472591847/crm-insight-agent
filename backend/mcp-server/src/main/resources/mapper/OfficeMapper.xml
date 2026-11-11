@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.itzixi.mapper.OfficeMapper">
+
+    <select id="findOfficeById" resultType="map">
+        SELECT a.id AS officeId, a.name AS officeName, a.type AS officeType
+        FROM sys_office a
+        WHERE a.del_flag = '0' AND a.id = #{officeId}
+        LIMIT 1
+    </select>
+
+    <!-- 精确名称：用 = 而非 LIKE，避免名称中的 % _ 被当成通配符；只匹配服务端生成的确定变形。 -->
+    <select id="findOfficesByExactNames" resultType="map">
+        SELECT a.id AS officeId, a.name AS officeName, a.type AS officeType
+        FROM sys_office a
+        WHERE a.del_flag = '0' AND a.name IN
+        <foreach collection="names" item="name" open="(" separator="," close=")">
+            #{name}
+        </foreach>
+        ORDER BY a.name, a.id
+        LIMIT 21
+    </select>
+
+    <select id="findOfficeCandidatesByName" resultType="map">
+        SELECT a.id AS officeId, a.name AS officeName, a.type AS officeType
+        FROM sys_office a
+        WHERE a.del_flag = '0' AND a.name LIKE #{pattern}
+        ORDER BY CASE
+            WHEN a.name = #{officeName} THEN 0
+            WHEN a.name LIKE CONCAT(#{officeName}, '%') THEN 1
+            ELSE 2
+        END, a.name, a.id
+        LIMIT 21
+    </select>
+
+    <!-- 对齐 CRM OfficeDao.getHDStationIDs：本节点+parent_ids 下级、指定门店类型、8 位 HD_ID。
+         2026-11-10 业务确认不纳入渠道店（type=18），同时排除要客部 13 与新媒体 14。 -->
+    <sql id="officeStoreScope">
+        FROM sys_office a LEFT JOIN sys_office o ON o.id = a.id
+        WHERE a.del_flag = '0'
+          AND a.HD_ID IS NOT NULL AND a.HD_ID &lt;&gt; ''
+          AND (a.id = #{officeId} OR o.parent_ids LIKE CONCAT('%,', #{officeId}, ',%'))
+          AND a.type IN ('6','11','22','28')
+          AND LENGTH(a.HD_ID) = 8
+    </sql>
+
+    <select id="countOfficeStoreCodes" resultType="long">
+        SELECT COUNT(DISTINCT a.HD_ID)
+        <include refid="officeStoreScope"/>
+    </select>
+
+    <select id="listOfficeStoreCodes" resultType="string">
+        SELECT DISTINCT a.HD_ID
+        <include refid="officeStoreScope"/>
+        ORDER BY a.HD_ID
+        LIMIT #{limit}
+    </select>
+
+    <!-- 门店兜底口径：只认可统计门店（直营/加盟 6、11、22、28），排除要客部 13、新媒体 14、渠道店 18。 -->
+    <sql id="fallbackStoreScope">
+        FROM sys_office a
+        WHERE a.del_flag = '0'
+          AND a.HD_ID IS NOT NULL AND a.HD_ID &lt;&gt; ''
+          AND a.type IN ('6','11','22','28')
+          AND LENGTH(a.HD_ID) = 8
+    </sql>
+
+    <select id="findFallbackStoresByExactNames" resultType="map">
+        SELECT a.HD_ID AS stationCode, a.name AS stationName, a.type AS officeType
+        <include refid="fallbackStoreScope"/>
+          AND a.name IN
+        <foreach collection="names" item="name" open="(" separator="," close=")">
+            #{name}
+        </foreach>
+        ORDER BY a.name, a.id
+        LIMIT 20
+    </select>
+
+    <select id="findFallbackStoresByName" resultType="map">
+        SELECT a.HD_ID AS stationCode, a.name AS stationName, a.type AS officeType
+        <include refid="fallbackStoreScope"/>
+          AND a.name LIKE #{pattern}
+        ORDER BY CASE
+            WHEN a.name = #{officeName} THEN 0
+            WHEN a.name LIKE CONCAT(#{officeName}, '%') THEN 1
+            ELSE 2
+        END, a.name, a.id
+        LIMIT 20
+    </select>
+
+    <select id="countOrdersByStationCode" resultType="long">
+        SELECT EXISTS(
+            SELECT 1 FROM expense_calendar_info e
+            WHERE e.expense_stationCode = #{stationCode}
+              AND e.expense_state = '10'
+              AND e.del_flag = '0'
+        )
+    </select>
+</mapper>

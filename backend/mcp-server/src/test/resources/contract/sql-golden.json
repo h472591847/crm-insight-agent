@@ -1,0 +1,17 @@
+{
+  "GENDER_CONSUMPTION_COMPARE" : {
+    "params" : [ "2026-06-01", "2026-06-27" ],
+    "sql" : "SELECT CASE WHEN m.member_sex = 1 THEN '男' WHEN m.member_sex = 2 THEN '女' ELSE '未知性别' END AS gender, COALESCE(SUM(CAST(NULLIF(TRIM(e.expense_realamt), '') AS DECIMAL(20, 2))), 0) AS sales_amount, COUNT(*) AS order_count, COUNT(DISTINCT e.expense_mobile) AS buyer_count FROM expense_calendar_info e LEFT JOIN member_info_view m ON e.expense_mobile = m.member_mobile WHERE (e.expense_state = '10') AND (e.del_flag = '0') AND ((m.del_flag = '0' OR m.member_mobile IS NULL)) AND e.expense_buyDate >= ? AND e.expense_buyDate < DATE_ADD(?, INTERVAL 1 DAY) GROUP BY CASE WHEN m.member_sex = 1 THEN '男' WHEN m.member_sex = 2 THEN '女' ELSE '未知性别' END ORDER BY sales_amount desc LIMIT 10",
+    "sqlHash" : "053369bb209bbb1e"
+  },
+  "PRODUCT_RANKING" : {
+    "params" : [ "2026-06-20", "2026-06-27", "S9" ],
+    "sql" : "SELECT expense_d_gdcode AS sku, MAX(expense_d_commName) AS product_name, MAX(expense_d_commCodeName) AS category_name, COALESCE(SUM(CAST(NULLIF(TRIM(expense_d_realamt), '') AS DECIMAL(20, 2))), 0) AS sales_amount, COALESCE(SUM(CAST(NULLIF(TRIM(expense_d_qty), '') AS DECIMAL(20, 4))), 0) AS quantity FROM expense_calendar_details WHERE (expense_d_state = '10') AND (del_flag = '0') AND expense_d_buyDate >= ? AND expense_d_buyDate < DATE_ADD(?, INTERVAL 1 DAY) AND expense_d_stationCode = ? GROUP BY expense_d_gdcode ORDER BY quantity asc LIMIT 10",
+    "sqlHash" : "3c1c61c5df033348"
+  },
+  "STATION_SALES" : {
+    "params" : [ "2026-06-20", "2026-06-27", "S1" ],
+    "sql" : "SELECT expense_stationCode AS station_code, MAX(expense_stationName) AS station_name, COALESCE(SUM(CAST(NULLIF(TRIM(expense_realamt), '') AS DECIMAL(20, 2))), 0) AS sales_amount, COUNT(*) AS order_count FROM expense_calendar_info WHERE (expense_state = '10') AND (del_flag = '0') AND expense_buyDate >= ? AND expense_buyDate < DATE_ADD(?, INTERVAL 1 DAY) AND expense_stationCode = ? GROUP BY expense_stationCode ORDER BY sales_amount desc LIMIT 500",
+    "sqlHash" : "380cf38392258177"
+  }
+}

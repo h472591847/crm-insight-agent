@@ -1,0 +1,121 @@
+# 真实测试库 crmtest 的对账基线（Phase 1 + Phase 2 全部指标）
+# 生成: python scripts/probe/step0_baseline_full.py   只读探测，无写入
+# 读取: src/test/java/com/itzixi/metrics/BaselineFixtures.java
+# 本文件随仓库提交（2026-10-30 用户确认）：真库对账测试需要它，不入库会导致新人克隆后测试报错。
+# 因此只允许写聚合数值与门店/商品名，禁止写入个人级字段（生日/手机号/地址）、凭证与明细结果。
+# 数值来源：2026-10-30 只读探测。主对账依赖测试内同刻执行的独立 oracle SQL 逐组比对；
+# 本文件的数值是二次校验（防止口径漂移），业务复核后如有出入以业务为准并重新生成本文件。
+meta:
+  database: crmtest
+  capturedAt: '2026-11-02'
+  window:
+    start: '2026-06-01'
+    endExclusive: '2026-06-28'
+  tableRows:
+    expenseCalendarInfo: 391093
+    expenseCalendarDetails: 15294611
+    memberInfo: 428930
+  probeLatencyMs:
+    rows_info: 72
+    rows_detail: 26796
+    rows_member: 267
+    memberOverview: 2515
+    stationPerformance: 1461
+    productRanking: 1721
+    productRankingRows: 854
+    activeMember: 2198
+    activeMemberTotal: 1633
+    memberNew: 285
+    levelDist: 1439
+    ageDist: 1801
+    birthdayFill: 1527
+    annualAvg: 1057
+    dqInfo: 868
+    dqMember: 2069
+    dqDetail: 68298
+
+memberOverview:            # 全局，del_flag='0'，无时间条件
+  totalMembers: 428929
+  maleCount: 399811
+  femaleCount: 24126
+  unknownCount: 4992
+  expenseMemberCount: 428060
+  totalExpenseAmount: 2009045640.76
+  selfCheck: maleCount + femaleCount + unknownCount == totalMembers
+
+stationPerformance:        # 窗口同上，按 expense_stationCode 分组
+  groupCount: 314
+  totalSalesAmount: 113923128.62
+  totalOrderCount: 185228
+  blankStationCodeGroups: 1   # 归并为“未知门店”
+  top1:
+    stationCode: '01010102'
+    stationName: '哈市鸿翔路旗舰店'
+    salesAmount: '4960148.38'
+    orderCount: 3134
+
+productRanking:            # 窗口同上，按销售额降序 Top10；异常 SKU 按真实商品统计不过滤（2026-10-30 确认）
+  windowDetailRowCount: 263450
+  top10:
+    - { rank: 1, sku: '0101010164', productName: '53度飞天茅台', salesAmount: 41084915.90, quantity: 24198.0000 }
+    - { rank: 2, sku: '0101010148', productName: '52度五粮液(第八代)', salesAmount: 8589897.32, quantity: 10729.0000 }
+    - { rank: 3, sku: '0101040017', productName: '茅台15年', salesAmount: 3335780.00, quantity: 767.0000 }
+    - { rank: 4, sku: '0101040126', productName: '53度贵州茅台精品', salesAmount: 2852035.00, quantity: 1179.0000 }
+    - { rank: 5, sku: '198.0', productName: '198plus', salesAmount: 2380158.00, quantity: 12021.0000 }
+    - { rank: 6, sku: '0101010559', productName: '53度茅台酒丙午马年经典版500ml', salesAmount: 2174252.00, quantity: 1088.0000 }
+    - { rank: 7, sku: '0101010513', productName: '53度青花汾酒20年（五码版2024）', salesAmount: 1940713.93, quantity: 5130.0000 }
+    - { rank: 8, sku: '0101021655', productName: '53度国台丙午马年生肖酒（骏钻）500ml', salesAmount: 1611063.29, quantity: 9099.0000 }
+    - { rank: 9, sku: '0102020196', productName: '奔富bin407赤霞珠红葡萄酒N', salesAmount: 1453037.29, quantity: 2230.0000 }
+    - { rank: 10, sku: '0101020146', productName: '53度钓鱼台豪门锦绣酒500ml', salesAmount: 1328434.01, quantity: 1705.0000 }
+
+activeMember:              # ACTIVE_MEMBER，窗口同上
+  stationGroupCount: 314
+  distinctMembersTotal: 86117
+  orderCountTotal: 185228
+  sumOfGroupsDistinctMembers: 94499   # 跨店重复消费，故 > 全局去重
+
+memberNew:                 # MEMBER_NEW，按 member_created 窗口 + 注册门店 member_store
+  totalNewMembers: 16863
+  storeGroupCount: 224       # GROUP BY member_store 的行数，含 member_store 为 NULL 的一组
+  distinctStoreCodes: 224    # COUNT(DISTINCT member_store)，忽略 NULL，比分组数少 1
+
+memberLevelDist:           # MEMBER_LEVEL_DIST 的 NEW_LEVEL 维度，全局无时间条件
+  totalMembers: 428929
+  filledCount: 414843
+  distinctValues: 7
+  unfilledCount: 14086
+
+ageDist:                   # AGE_DIST，2026-10-30 起按阴历生日 member_yin_birthday 分桶
+  yinBirthdayFilled: 2628    # 阳历 member_yang_birthday 填充数=0（100% 为空），age 列填充数=443
+  '未知': 426301
+  '19岁及以下': 850
+  '40-49岁': 783
+  '30-39岁': 558
+  '50-59岁': 329
+  '20-29岁': 61
+  '60岁及以上': 47
+  selfCheck: 各分桶求和 == memberOverview.totalMembers
+
+annualAvgConsumption:      # ANNUAL_AVG_CONSUMPTION，窗口同上
+  totalConsumption: 113923128.62
+  expenseMemberCount: 86117
+  avgPerMember: 1322.89   # totalConsumption / expenseMemberCount，HALF_UP 2 位
+
+genderComparison:          # GENDER_CONSUMPTION_COMPARE，窗口同上
+  groupCount: 3            # 男/女/未知性别 三组
+  male:
+    salesAmount: 53612766.36
+  female:
+    salesAmount: 3893191.24
+  unknown:
+    salesAmount: 56417171.02
+
+dataQuality:               # 口径前置事实（变更这些值说明数据变了，需重新体检）
+  infoMobileBlankCount: 0          # 活跃/年均消费按 mobile 去重的前提
+  infoEffectiveOrderRows: 391093
+  infoTenantBlankCount: 240924          # tenant 已于 2026-10-30 取消，仅留证据
+  infoTenantDistinctNonBlank: 1
+  memberTenantFilled: 0            # 应为 0（member_tenant 全空）
+  memberDistinctMobiles: 428929         # 与 totalMembers 相等 → 手机号可作会员唯一关联键
+  detailAmtCastNullCount: 0        # 应为 0：无静默丢失金额
+  detailDeletedRows: 38             # state='10' 且 del_flag='1'，已被基线过滤排除

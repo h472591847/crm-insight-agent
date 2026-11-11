@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.itzixi.mapper.ExpenseStatMapper">
+
+    <!--
+      门店业绩：仅统计订单头表 expense_calendar_info（1 单 1 行），规避与明细联查的重复累计。
+      口径：expense_state='10' AND del_flag='0'；金额取实付 expense_realamt（VARCHAR，退单为负数，SUM 自然抵消）。
+      时间左闭右开：>= startDate AND < endDate+1day。客单价由服务端计算。
+    -->
+    <select id="stationPerformance"
+            resultType="com.itzixi.entity.response.StationPerformanceResult$StationStat">
+        SELECT
+            expense_stationCode                                                        AS station_code,
+            MAX(expense_stationName)                                                   AS station_name,
+            COALESCE(SUM(CAST(NULLIF(TRIM(expense_realamt), '') AS DECIMAL(20, 2))), 0) AS sales_amount,
+            COUNT(*)                                                                   AS order_count
+        FROM expense_calendar_info
+        WHERE expense_state = '10'
+          AND del_flag = '0'
+          AND expense_buyDate &gt;= #{startDate}
+          AND expense_buyDate &lt; DATE_ADD(#{endDate}, INTERVAL 1 DAY)
+        <if test="tenant != null and tenant != ''">
+            AND expense_tenant = #{tenant}
+        </if>
+        <if test="stationCode != null and stationCode != ''">
+            AND expense_stationCode = #{stationCode}
+        </if>
+        GROUP BY expense_stationCode
+        ORDER BY sales_amount DESC
+    </select>
+
+    <!--
+      商品销售排行：基于明细表 expense_calendar_details 按 SKU(expense_d_gdcode) 聚合。
+      口径：expense_d_state='10' AND del_flag='0'。明细表无租户字段，故不做 tenant 过滤。
+      ORDER BY 使用 choose 白名单，禁止外部直传列名，避免注入。
+    -->
+    <select id="productRanking"
+            resultType="com.itzixi.entity.response.ProductRankingResult$ProductStat">
+        SELECT
+            expense_d_gdcode                                                          AS sku,
+            MAX(expense_d_commName)                                                   AS product_name,
+            MAX(expense_d_commCodeName)                                               AS category_name,
+            COALESCE(SUM(CAST(NULLIF(TRIM(expense_d_realamt), '') AS DECIMAL(20, 2))), 0) AS sales_amount,
+            COALESCE(SUM(CAST(NULLIF(TRIM(expense_d_qty), '') AS DECIMAL(20, 4))), 0)     AS quantity
+        FROM expense_calendar_details
+        WHERE expense_d_state = '10'
+          AND del_flag = '0'
+          AND expense_d_buyDate &gt;= #{startDate}
+          AND expense_d_buyDate &lt; DATE_ADD(#{endDate}, INTERVAL 1 DAY)
+        <if test="stationCode != null and stationCode != ''">
+            AND expense_d_stationCode = #{stationCode}
+        </if>
+        GROUP BY expense_d_gdcode
+        ORDER BY
+        <choose>
+            <when test="rankBy == 'qty'">quantity</when>
+            <otherwise>sales_amount</otherwise>
+        </choose>
+        DESC
+        LIMIT #{topN}
+    </select>
+
+</mapper>

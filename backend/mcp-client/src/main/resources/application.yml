@@ -1,0 +1,80 @@
+spring:
+  application:
+    name: spring-ai-mcp-client
+  profiles:
+    active: dev
+  ai:
+    openai:
+      # MaaS endpoint 的 base-url 必须带 /compatible-mode/v1 后缀（OpenAI starter 会拼 /chat/completions）
+      # 公共 endpoint 也可以：https://dashscope.aliyuncs.com/compatible-mode/v1
+      base-url: ${OPENAI_BASE_URL}
+      # MaaS endpoint 面板 "API 快捷接入" 领的 key 或主账号 API Key 都能调兼容端点
+      api-key: ${OPENAI_API_KEY}
+      chat:
+        options:
+          model: ${OPENAI_CHAT_MODEL}
+      embedding:
+        options:
+          model: ${OPENAI_EMBEDDING_MODEL}
+          # 向量维度决定 Redis 向量索引结构，变更后必须重建索引
+          dimensions: ${OPENAI_EMBEDDING_DIMENSIONS:1024}
+# 测试环境无 Redis Stack，RedisVectorStore 自动装配关掉（starter 已 optional 保留）
+# 需要 RAG 时：删掉 enabled=false + 恢复 vectorstore.redis 块 + 重建索引
+    vectorstore:
+      redis:
+        enabled: false
+#        initialize-schema: true
+#        index-name: lee-vector-index
+#        prefix: 'embedding:'
+  data:
+    redis:
+      host: ${REDIS_HOST}
+      port: ${REDIS_PORT}
+      password: ${REDIS_PASSWORD}
+      timeout: 600000  # 连接超时时间（毫秒），增加到600秒
+      database: ${REDIS_DATABASE}
+ok:
+  http:
+    read-timeout: 30
+    write-timeout: 30
+# 日志配置
+logging:
+  level:
+    com.itzixi: @logging.level@
+    org.springframework: warn
+    org.mybatis.spring.mapper: error
+  config: classpath:logback-spring.xml
+
+# ========== SSE 通道管理 ==========
+sse:
+  heartbeat:
+    # 心跳间隔：决定死连接被发现的最坏延迟；须明显小于 nginx SSE location 的 3600s
+    interval: 25s
+    # 派发线程数：只把写任务投递到写线程池，不做阻塞写
+    dispatch-threads: 1
+    # 每 N 轮心跳输出一次汇总日志（25s * 12 ≈ 5 分钟），0 表示关闭
+    summary-every-rounds: 12
+  write-pool:
+    # 写线程数：半死连接最多占住这么多线程
+    threads: 2
+    # 有界队列容量：队列满即判定该通道“写不动了”并清理
+    queue-capacity: 256
+
+# ========== 指标暴露（只开 health/info/metrics，不要用 *）==========
+# 无 Prometheus 抓取方，指标只保留本地可查：/actuator/metrics/sse.channels.active 等
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: never
+
+# ========== 功能开关（生产/测试都默认关，需要时改成 true 或设环境变量）==========
+app:
+  feature:
+    # RAG 知识库加载 / 检索（需要 Redis Stack + 重建向量索引；当前项目统计分析不用）
+    rag-enabled: false
+    # SearXNG 联网搜索（需要本地 SearXNG 服务；当前项目统计分析不用）
+    websearch-enabled: false

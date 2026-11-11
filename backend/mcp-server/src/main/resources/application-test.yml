@@ -1,0 +1,20 @@
+server:
+  port: 9060
+spring:
+  datasource:
+    type: com.zaxxer.hikari.HikariDataSource  # 数据源类型
+    driver-class-name: com.mysql.cj.jdbc.Driver  # 数据库驱动
+    url: jdbc:mysql://${MYSQL_HOST_TEST:localhost}:${MYSQL_PORT_TEST:3306}/crmtest?useUnicode=true&characterEncoding=UTF-8&autoReconnect=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+    username: ${MYSQL_USER_TEST}
+    password: ${MYSQL_PASSWORD_TEST}
+    hikari:
+      pool-name: DataSourceHikariCP       # 连接池名字
+      connection-timeout: 30000           # 等待连接池分配连接的最大时间（ms），超过这个时长还没有可用的连接，则会抛出SQLException
+      minimum-idle: 5                     # 最小连接数
+      maximum-pool-size: 20               # 最大连接数
+      auto-commit: true                   # 自动提交
+      read-only: true                     # 连接池默认只读（执行层之外的连接级兜底）
+      connection-init-sql: "SET SESSION TRANSACTION READ ONLY"  # 会话级只读，写入直接由 MySQL 拒绝
+      idle-timeout: 600000                # 连接超时的最大时长（ms），超时则会被释放
+      max-lifetime: 18000000              # 连接池的最大生命时长（ms），超时则会被释放
+      connection-test-query: SELECT 1

@@ -1,0 +1,244 @@
+# 语义元数据：Ad-hoc 查询引擎唯一事实来源。
+# 一次性构建；新增可查列只改本文件（列必须在 DDL 真实存在），不改 Java。
+# 安全约定：模型只能引用本文件声明的名字；值一律参数化；条件聚合只能引用 conditionPresets。
+entities:
+  member:
+    table: member_info_view
+    alias: mv
+    description: "会员（2026-11-02 起会员口径统一取 member_info_view；该表就是 CRM 会员信息列表页口径——MemberInfoController → MemberInfoService.findPage → MemberInfoDao.findList 实际 FROM member_info_view a，固定条件 a.del_flag='0'，与我们的取数来源和过滤完全一致，会员统计可直接与 CRM 列表页对齐；它是 member_info 行更新后由触发器 ff_update_member_info_view 同步的物理表，不是 SQL 视图。背景：member_info 有效会员 628,527 行、member_info_view 428,930 行，差异来自触发器同步范围，属已知背景，不影响与 CRM 列表页的一致性）"
+    countKey: member_mobile   # 唯一且可作关联键；join 场景 COUNT(*) 改 COUNT(member_mobile) 防 NULL 行计数
+    baselineFilters:
+      - "mv.del_flag = '0'"
+    # 数据权限范围注：当前无登录态，无默认机构过滤（未注入 member_allot_store IN (...)）。
+    # 未来接入登录后，由 AdhocQueryService 在服务层入口强制注入当前用户权限内的门店编码过滤，
+    # 改动点固定在服务层、不进 baselineFilters（权限范围是动态的，不同用户不同范围）。
+    dimensions:
+      - { name: STORE_CODE, column: member_allot_store, nullLabel: "未知门店" }
+      - { name: REG_STORE,  column: member_store,       nullLabel: "未知门店" }
+      - { name: STAFF,      column: track_user_id,      nullLabel: "未分配导购" }
+      - { name: GENDER, expr: "CASE WHEN mv.member_sex = 1 THEN '男' WHEN mv.member_sex = 2 THEN '女' ELSE '未知' END" }
+      - { name: STORE_NAME, column: member_allot_stationName, agg: MAX }   # 描述列：MAX 输出，不进分组
+      # 会员级别/层级（2026-11-07 真库核实：值为自描述中文，非编码）
+      - { name: MEMBER_LEVEL,   column: new_member_level_value, nullLabel: "未填写" }  # 新会员等级名称：初享/悦享/优享/荣享/臻享/尊享/鼎享
+      # 多种"会员级别"口径（业务 2026-11-07 确认，除 HAIDING_LEVEL 外均为编码，无中文标签映射）
+      - { name: HAIDING_LEVEL,       column: reserved15,       nullLabel: "未填写" }  # 海鼎系统定义的客户级别（列注释标注废弃，库内仍有中文标签）
+      - { name: COMPANY_LEVEL,       column: company_level,    nullLabel: "未填写" }  # 公司级别（业务称毛利级别，18 个月）；CRM set_level 按 level_code=companyLevelA~G 分组实测 21 个：AA/AB/AC、BA/BB/BC、CA/CB/CC、DA/DB/DC、EA/EB/EC、FA/FB/FC、GA/GB/GC；无中文映射，原样输出编码
+      - { name: CITY_LEVEL,          column: city_level,       nullLabel: "未填写" }  # 城市级别，取值 A~H（与 set_level 的 cityLevel 分组一致）
+      - { name: STORE_LEVEL,         column: store_level,      nullLabel: "未填写" }  # 门店级别，取值 A~H（与 set_level 的 storeLevel 分组一致）
+      - { name: PERSONAL_LEVEL,      column: personal_level,   nullLabel: "未填写" }  # 个人级别，取值 a~f（真库观察值；set_level 无 personalLevel 分组）
+      - { name: HALF_YEAR_SALES_LEVEL, column: half_year_level, nullLabel: "未填写" }  # 一年半销售级别（销售等级，18 个月）；CRM set_level 实测 17 个：AA/AB/AC、BA/BB/BC、CA/CB/CC、DA/DB/DC、EA/EB/EC、FA/FB（无 FC、无 G/H）；无中文映射
+      - { name: TOTAL_YEAR_SALES_LEVEL, column: total_year_level, nullLabel: "未填写" }  # 总销售级别（销售等级，全部时间）；CRM set_level 实测 24 个：AA/AB/AC 至 HA/HB/HC（A~H × A/B/C）；无中文映射
+      - { name: CUSTOMER_VALUE, column: customer_cost,          nullLabel: "未填写" }  # 顾客价值：库内直接存中文标签，固定 8 值（一般保护/重要价值/一般挽留/一般发展/重要保护/一般价值/重要挽留/重要发展用户）
+      # 是否要客：CRM 页面筛选 0=否 / 1=是（要客/被跟踪）；取消要客流程会出现 track=2，NULL 也可能存在；
+      # 本维度仅区分 0/1，其余（2、NULL）落“未知”，不得把 2 或 NULL 说成“否”
+      - { name: VIP_FLAG, expr: "CASE WHEN mv.track = 1 THEN '要客' WHEN mv.track = 0 THEN '非要客' ELSE '未知' END" }
+      # 分配与会员池状态（member_is_allot_store 1/2；isAllotStaff 1=已分配员工 / 2=未分配 / 空=不限，此处空值落“未知”仅为展示归并）；POND_TYPE 0/1
+      - { name: ALLOT_STORE_FLAG, expr: "CASE WHEN mv.member_is_allot_store = '1' THEN '已分配门店' WHEN mv.member_is_allot_store = '2' THEN '未分配门店' ELSE '未知' END" }
+      - { name: STAFF_ALLOT_FLAG, expr: "CASE WHEN mv.isAllotStaff = '1' THEN '已分配店员' WHEN mv.isAllotStaff = '2' THEN '未分配店员' ELSE '未知' END" }
+      - { name: POND_TYPE, expr: "CASE WHEN mv.importan_pond_user_type = 1 THEN '池中' WHEN mv.importan_pond_user_type = 0 THEN '正常' ELSE '未知' END" }
+      # 2026-11-09 开放：归属员工/分配员工（varchar，有 index_allot_staffName）
+      - { name: ALLOT_STAFF_NAME, column: member_allot_staffName, nullLabel: "未分配员工" }
+      # plus 会员标识（2026-11-10 确认：plus_type=1 即 PLUS，其余（含 NULL）都不是；页面筛选“否”实现为 plus_type IS NULL，不是 =0）
+      # 旧备注“1=全年会员”来自 DDL 注释、与 CRM 源码不符，已废弃；真库仅出现 NULL 与 '1'
+      - { name: PLUS_TYPE, column: plus_type, nullLabel: "非PLUS" }
+      # 渠道（2026-11-10 按 CRM MemberInfoDao.findList 的 channelTypeStr 映射登记）：
+      # 1 饿百 / 2 美团 / 3 京东到家；DDL 注释里的 0（默认本部）与 4（抖音）CRM 页面不映射、真库 member_info_view 也不存在，统一落“未知渠道”
+      # 真库 del_flag='0' 428,929 行中仅 25 行非空（2/3/1 各 13/10/2），过滤结果通常极小
+      - { name: CHANNEL_TYPE, expr: "CASE WHEN mv.channel_type = '1' THEN '饿百' WHEN mv.channel_type = '2' THEN '美团' WHEN mv.channel_type = '3' THEN '京东到家' ELSE '未知渠道' END" }
+      # CRM member 表 reserved 系列语义（源码确认）：
+      # reserved2=最近一次有效消费时间（取 expense_calendar_info 中 expense_state='10' 的最近 expense_buyDate，页面右开）——已开放为过滤列；
+      # reserved4=最近被访问时间；reserved5/6/7=最近被访问门店 id/名称/人；
+      # reserved8=被回访总次数（按 sys_office.type in (5,6,22) 统计）；reserved9=最近访问人 id；
+      # 回访明细在 access_record_info（access_form：1 电话 / 2 店内 / 3 上门 / 4 即时通讯），当前未接入本项目数据模型
+    measures:
+      - { name: MEMBER_COUNT,   expr: "*",                            agg: COUNT }
+      # 消费金额/累计消费不再取会员视图快照字段（member_expense_totalsum/totalsum_year），
+      # 统一走 order 实体的 SALES（expense_calendar_info.expense_realamt 实付汇总），见 filterGuidance
+      - { name: MEMBER_EXPENSE_TIMES, column: member_expense_time,      agg: SUM }   # 累计消费次数
+      - { name: YEAR_EXPENSE_TIMES,   column: member_expense_time_year, agg: SUM }   # 近一年半消费次数
+    # CRM 页面“消费时间”绑定 reserved2（最近一次有效消费时间，右开）：本项目把 reserved2 开放为
+    # **过滤列**（见 filterableColumns），以便与主实体 CREATED 时间窗并存（timeRange 只有一个槽位）；
+    # 它不是“区间内是否有消费”的统计口径，统计消费仍走 order.BUY_DATE，两者不得声称等价
+    timeColumns:
+      CREATED: member_created
+      TRACK_TIME: track_time
+      TRACK_CANCEL_TIME: track_cancel_time
+      FIRST_CONSUME_TIME: consume_time
+      ALLOT_TIME: member_allot_time
+    conditionPresets:
+      - { id: IS_VIP,        column: track,                   op: "=",  value: "1" }
+      # 2026-11-10 移除 HAS_EXPENSE：原基于会员快照 member_expense_totalsum > 0（非实时）；
+      # 条件模板只能绑定本实体（member_info_view）字段，无法切换到 member_info 基础表或订单表，
+      # 无法提供与“有消费”等价且可安全使用的判定，故删除，需要时走 adhoc（按会员属性关联 order 度量）
+      - { id: CANCELLED,     column: track_cancel_time,       op: "IS NOT NULL" }
+    filterableColumns: [ member_allot_store, member_store, member_allot_stationName, track, member_sex,
+                         member_created, track_time, track_cancel_time, member_mobile,
+                         new_member_level_value, reserved15, company_level, city_level, store_level,
+                         personal_level, half_year_level, total_year_level, customer_cost,
+                         member_is_allot_store, isAllotStaff, importan_pond_user_type,
+                         member_allot_staffName, plus_type,
+                         member_name, channel_type, reserved2, member_expense_totalsum_year ]
+    # indexedColumns：表上有索引的过滤列（标注事实，不参与裁决）。索引以 DATABASE_SCHEMA.md 原始 DDL 为准；
+    # member 侧按 member_info 的 DDL（视图由触发器同步，索引结构以真库 SHOW INDEX 复核为准）
+    # member_mobile 已在真库复核：varchar(100) 明文存储，有 index_mobile 与 idx_membermobile_memberallotstore
+    # member_is_allot_store / isAllotStaff：真库有 MUL 索引（index_is_allot_store / index_isAllotStaff）
+    # 层级/价值列（new_member_level_value / reserved15 / city_level / store_level / personal_level /
+    # half_year_level / total_year_level / customer_cost）无索引，属全会员表过滤；company_level 有 index_company_level
+    # member_allot_staffName 有 index_allot_staffName（真库 DDL）；plus_type 无索引，属全会员表过滤
+    # 2026-11-10 真库 SHOW INDEX 复核 member_info_view：member_name → index_name、reserved2 → index_reserved2、
+    # member_expense_totalsum_year → index_member_expense_totalsum_year（均 NON_UNIQUE=1）；channel_type 无索引
+    indexedColumns: [ member_allot_store, member_store, member_allot_stationName, track, member_sex,
+                      member_created, track_time, track_cancel_time, member_mobile,
+                      member_is_allot_store, isAllotStaff, company_level, member_allot_staffName,
+                      member_name, reserved2, member_expense_totalsum_year ]
+    filterGuidance:
+      - "查手机号：用户给出完整手机号时可直接用 member_mobile（op=，index_mobile）等值过滤；完整号码即单个会员，无需先调 guessMemberByMobile；手机号列仅支持精确匹配，禁止 LIKE/前缀/包含模糊匹配"
+      - "查会员级别/层级：MEMBER_LEVEL（新会员等级：初享/悦享/优享/荣享/臻享/尊享/鼎享）、HAIDING_LEVEL（海鼎级别）、COMPANY_LEVEL（公司级别/毛利级别）、CITY_LEVEL（城市级别）、STORE_LEVEL（门店级别）、PERSONAL_LEVEL（个人级别）、HALF_YEAR_SALES_LEVEL（一年半销售级别）、TOTAL_YEAR_SALES_LEVEL（全年总销售级别）、CUSTOMER_VALUE（顾客价值）。用户只说“会员级别/级别”未指明哪套口径时，必须列出以上候选让用户选，不得自行默认；除 HAIDING_LEVEL 为中文字段外，其余级别取值为编码，原样输出；COMPANY_LEVEL（公司级别/毛利级别，18 个月）实测 21 个编码（AA~AC、BA~BC、CA~CC、DA~DC、EA~EC、FA~FC、GA~GC），HALF_YEAR_SALES_LEVEL（一年半销售级别，18 个月）实测 17 个（AA~AC、BA~BC、CA~CC、DA~DC、EA~EC、FA~FB），TOTAL_YEAR_SALES_LEVEL（总销售级别，全部时间）实测 24 个（AA~AC 至 HA~HC），三组均由 set_level 按 level_code 分组、无中文名称，不得编造编码对应的等级含义；CITY_LEVEL/STORE_LEVEL（A~H）与 set_level 的 cityLevel/storeLevel 一致，PERSONAL_LEVEL（a~f）不在 set_level、属真库观察值，NULL 归“未填写”；company_level 另有 1 条游离值 'A'（对应 set_level 中 level_code=companyLevel、level='A' 的父级行，CRM 下拉不展示），属数据异常/父级码，原样输出、不映射等级含义（该会员不在 member_info_view 中）。customer_level、consume_hierarchy 真库 100% 为空；member_importance 取值混有 1-9 编码与少量中文标签，编码含义待确认——以上均不开放"
+      - "查是否要客：track（CRM 页面筛选 0=否 / 1=是；取消要客流程会出现 track=2，NULL 也可能存在），优先用 IS_VIP 条件模板（track=1）；输出用 VIP_FLAG 维度（要客/非要客/未知），不要直接输出 1/0，也不要把 2 或 NULL 说成“否”"
+      - "查分配状态：ALLOT_STORE_FLAG（member_is_allot_store 1=已分配门店 / 2=未分配）、STAFF_ALLOT_FLAG（isAllotStaff 1=已分配员工 / 2=未分配 / 空=不限）；member_allot_store 存的是 sys_office.HD_ID（8 位），与 member_info.office_id 不是同一字段，CRM 页面按分配门店做机构数据权限隔离，该列为空的会员在设置机构范围时会被完全排除；查会员池：POND_TYPE（importan_pond_user_type 0 正常/1 池中）"
+      - "查归属员工/分配员工：维度 ALLOT_STAFF_NAME（member_allot_staffName，有 index_allot_staffName），也可按 member_allot_staffName 等值过滤；该列可为空，空值按 nullLabel 输出“未分配员工”"
+      - "查 plus 会员：CRM 语义只有两种——plus_type=1 即 PLUS，其余（含 NULL）都不是；页面“否”实现为 plus_type IS NULL（不是 =0）。维度 PLUS_TYPE 输出 PLUS/非PLUS；判断是 → plus_type = '1'；判断否 → plus_type IS NULL"
+      - "查消费金额/累计消费（金额输出）：禁止把 member_expense_totalsum / member_expense_totalsum_year 作为金额输出；
+      必须改用 order 实体的 SALES（expense_calendar_info.expense_realamt 实付汇总，order 基线已限定 expense_state='10' AND del_flag='0'）；
+      按会员属性（分配门店、性别、级别等）分组或过滤时 entities=[order, member]（order→member 为 to_one，1:1 不放大金额）；
+      不传 timeRange 即全部历史累计，传 timeRange 则按订单下单时间限窗；
+      口径差异（不得声称与 CRM 会员列表页等价）：CRM 列表页金额区间用的是 18 个月快照 member_expense_totalsum_year
+      （由订单 expense_realamt 回写、非实时，且其快照子查询未加 expense_state='10'，可能把已退单金额算进来）；
+      本系统用订单实付实时汇总，两者在退单处理与更新时点上可能不同"
+      - "查会员消费金额区间（用来筛会员，不是输出金额）：CRM 会员列表页的 strMoney/endMoney 就是
+      member_expense_totalsum_year（decimal(20,2)，有 index_member_expense_totalsum_year）的闭区间；
+      同一列写两条过滤（同列多条件按 AND 叠加）即可完全对齐：一条 op 为 >= 取 strMoney、一条 op 为 <= 取 endMoney。
+      该列只用于筛人，回答里只能给人数/占比等聚合，禁止把它的值当消费金额输出（金额输出仍走 order.SALES）"
+      - "查姓名：member_name（varchar(500)，有 index_name）按 CRM 列表页口径用 LIKE 包含匹配，
+      value 必须自带通配符（如 '%范成%'）；姓名不唯一，重名会命中多条，只能报数量/聚合，不得把姓名当唯一标识；
+      member_name 属个人信息列，禁止原值输出——不得作为维度分组，回答里也不得出现姓名"
+      - "查渠道：channel_type 无索引，只支持 = / != / IS NULL / IS NOT NULL；1=饿百、2=美团、3=京东到家，
+      其余（含 DDL 注释里的 0 默认本部、4 抖音、以及 NULL）都归未知；输出用 CHANNEL_TYPE 维度。
+      真库会员视图 428,929 行中该列仅 25 行非空，过滤结果通常极小"
+      - "查最近消费时间：reserved2（varchar(300)，有 index_reserved2，值为 YYYY-MM-DD HH:mm:ss，部分带 .0 后缀）
+      是 CRM 的“最近一次有效消费时间”，对应会员列表页 consumptionBeginTime/consumptionEndTime；
+      用两条过滤表达左闭右开：reserved2 的 op= >= 给起始日、另一条 op= < 给结束日（不含结束日）。
+      它只说明“最近一次消费落在该区间”，不等于“区间内有消费”；区间消费统计仍用 order.BUY_DATE"
+      - "查门店：编码优先——用户给了门店编码直接用 member_allot_store（op=）；
+      多个编码用 op=IN、values 为编码数组（去重后最多 500 个，value 留空，值含逗号也不拆分）；
+      只给了名称（或不完整/不确定）时先做名称→编码解析：本表选 STORE_CODE/STORE_NAME（可带 MEMBER_COUNT）按 member_allot_stationName 过滤（前缀 LIKE 'xx%' 可用索引优先，
+      包含 LIKE '%xx%' 会扫会员表但一次可接受），恰好 1 个候选即用其编码；多个候选时停下来把编码+名称列给用户确认是哪家店，0 个候选时请用户给编码，不得猜；
+      member_allot_store 存 sys_office.HD_ID（8 位），不是 member_info.office_id；CRM 按分配门店做机构数据权限隔离，该列为空的会员在设置机构范围时会被完全排除；
+      会员表三级匹配全空时 guessStation 会用机构表（sys_office）同序兜底门店，返回 matchedBy=office_only、memberCount=0：
+      语义是“门店存在但当前没有会员分配记录”（会员/要客数为 0），不得说成门店不存在；候选带 hasOrders，可在回答中补一句是否有销售记录；
+      渠道店（type=18）、要客部（13）、新媒体（14）不纳入门店统计，这类仍返回 no_match"
+      - "查机构/总部/大区范围：必须先调 resolveOfficeStores（officeId 或 officeName 二选一），
+      status=resolved 时把返回的 storeCodes 原样传给 member_allot_store 的 IN 过滤，不要用 office_id 代替；
+      用户给的是机构全名（如“小酒喔总部”）时按名称直接解析，精确命中即 resolved——总部/大区等非门店机构也会解析出下级门店，
+      不得再让用户确认机构类型；只有返回 needs_clarification（降级后多候选）才让用户从 candidates 中选，再用 officeId 重查；
+      status=no_stores 表示机构下没有可统计门店，或该机构本身是渠道/加盟、要客部、新媒体类不纳入统计，如实说明即可；
+      门店类型口径为 6/11/22/28（直营/加盟），排除渠道店 18、要客部 13、新媒体 14；
+      too_many_stores（超过 IN 的 500 值上限，总部级 369 个门店在内）必须请用户缩小机构范围，不得截取部分门店或分批求和"
+      - "关联明细：entities 以 member 为主表时，detail 仍要满足自身守卫——时间范围须显式指定 entity=detail（≤92 天），
+      或用 detail 的 expense_d_mobile/expense_d_orderId 定向过滤"
+    relationships:
+      - target: order
+        type: "LEFT JOIN"
+        cardinality: to_many   # 一个会员多笔订单：member 粒度度量会被订单行放大，只能选 order 粒度度量（消费金额一律走 order.SALES；商品维度 CRM 用明细行 expense_d_realamt，见 detail）
+        "on": "mv.member_mobile = e.expense_mobile"
+        joinFilters: [ "(e.expense_state = '10' AND e.del_flag = '0')" ]
+      - target: detail
+        type: "LEFT JOIN"
+        cardinality: to_many   # 一个会员多行明细：只允许 detail 粒度度量，member 侧无消费金额度量可同选
+        "on": "mv.member_mobile = ed.expense_d_mobile"
+        joinFilters: [ "(ed.expense_d_state = '10' AND ed.del_flag = '0')" ]
+
+  order:
+    table: expense_calendar_info
+    alias: e
+    description: "有效订单头（expense_state='10'）"
+    countKey: id
+    baselineFilters:
+      - "e.expense_state = '10'"
+      - "e.del_flag = '0'"
+    dimensions:
+      - { name: STATION_CODE, column: expense_stationCode, nullLabel: "未知门店" }
+      - { name: STATION_NAME, column: expense_stationName, agg: MAX }
+      - { name: ORDER_GENDER, expr: "CASE WHEN mv.member_sex = 1 THEN '男' WHEN mv.member_sex = 2 THEN '女' ELSE '未知性别' END", requires: member }
+    measures:
+      - { name: ORDER_COUNT,  expr: "*",                    agg: COUNT }
+      # 订单/会员口径的消费金额取订单头实付 expense_realamt（VARCHAR 数值，编译自动 NUM()）；
+      # 商品维度 CRM 用明细行 expense_d_realamt，两者不能直接等同（整单优惠/抹零无分摊逻辑，见 detail）
+      - { name: SALES,        column: expense_realamt,      agg: SUM }
+      - { name: BUYER_COUNT,  column: expense_mobile,       agg: COUNT_DISTINCT }  # PII 计算允许、输出禁止
+    timeColumns:
+      BUY_DATE: expense_buyDate
+    conditionPresets: []
+    filterableColumns: [ expense_stationCode, expense_mobile ]
+    indexedColumns: [ expense_stationCode, expense_mobile ]   # index_stationCode；expense_mobile 有 index_mobile（真库复核）
+    filterGuidance:
+      - "查手机号：用户给出完整手机号时可直接用 expense_mobile（op=，index_mobile）等值过滤；手机号列仅支持精确匹配，禁止 LIKE/前缀/包含模糊匹配"
+      - "查消费金额/累计消费：只用 SALES（expense_realamt 实付汇总，order 基线已限定 expense_state='10' AND del_flag='0'，退单负行自然抵消）；
+      不得改用 member_info_view.member_expense_totalsum 会员视图快照字段。按会员属性分组/过滤时用主实体 order + member（to_one，1:1 不放大金额）；
+      不传 timeRange 即全部历史累计，传 timeRange 按 expense_buyDate 限窗；
+      与 CRM 会员列表页不等价：CRM 用 18 个月快照 member_expense_totalsum_year（非实时，快照子查询未加 expense_state='10'，可能含已退单金额），
+      本系统用订单实付实时汇总（expense_state='10' AND del_flag='0'），退单处理与更新时点可能不同"
+      - "查门店：只能用门店编码 expense_stationCode（op=，有 index_stationCode）。expense_stationName 无索引，禁止名过滤（LIKE/等值都会扫全表）；
+      用户给的名称不完整/不确定时先按 member 实体 member_allot_stationName 模糊解析（多候选→把编码+名称列给用户确认是哪家店；0 候选→请用户给编码），拿到唯一编码后再回来等值过滤"
+    relationships:
+      - target: member
+        type: "LEFT JOIN"
+        cardinality: to_one   # member_mobile 全表唯一，订单度量不因 join 会员放大
+        "on": "e.expense_mobile = mv.member_mobile"
+        joinFilters: [ "(mv.del_flag = '0' OR mv.member_mobile IS NULL)" ]
+
+  detail:
+    table: expense_calendar_details
+    alias: ed
+    description: "消费明细行（SKU 粒度，真库 1500 万+ 行；查询守卫：必须带时间范围/手机号/流水号之一，时间窗≤92 天）"
+    countKey: id
+    baselineFilters:
+      - "ed.expense_d_state = '10'"
+      - "ed.del_flag = '0'"
+    dimensions:
+      - { name: SKU,             column: expense_d_gdcode }
+      - { name: PRODUCT_NAME,    column: expense_d_commName }
+      - { name: CATEGORY_NAME,   column: expense_d_commCodeName }
+      - { name: DETAIL_STATION,  column: expense_d_stationCode, nullLabel: "未知门店" }
+      - { name: DETAIL_STATION_NAME, column: expense_d_stationName, agg: MAX }
+      - { name: DETAIL_GENDER, expr: "CASE WHEN mv.member_sex = 1 THEN '男' WHEN mv.member_sex = 2 THEN '女' ELSE '未知性别' END", requires: member }
+    measures:
+      - { name: DETAIL_LINES,   expr: "*",                 agg: COUNT }
+      - { name: DETAIL_SALES,   column: expense_d_realamt, agg: SUM }   # 明细行实付（VARCHAR，编译自动 NUM()）；CRM 商品维度统计即用此列；整单优惠/抹零如何分摊到行，CRM 源码无分摊逻辑，不能与订单头实付直接等同
+      - { name: DETAIL_STD_AMT, column: expense_d_stdtotal, agg: SUM }  # VARCHAR，编译自动 NUM()
+      - { name: DETAIL_QTY,     column: expense_d_qty,     agg: SUM }   # VARCHAR，编译自动 NUM()
+      - { name: DETAIL_BUYERS,  column: expense_d_mobile,  agg: COUNT_DISTINCT }  # 2026-11-03 业务授权：仅聚合值，原值禁止
+    timeColumns:
+      BUY_DATE: expense_d_buyDate
+    conditionPresets: []
+    filterableColumns: [ expense_d_stationCode, expense_d_gdcode,
+                         expense_d_commCodeName, expense_d_mobile, expense_d_orderId ]
+    # expense_d_commCodeName 无索引（只有 commCode 普通索引与 commName 全文索引），过滤它可能扫 1,529 万行——目录里 indexed=false 提示模型优先时间窗/编码收敛；
+    # 商品名称 expense_d_commName 有全文索引、可作维度分组，但未开放为过滤列（CRM 列表页用 MATCH ... AGAINST，其他报表用 LIKE，两处不统一）
+    indexedColumns: [ expense_d_stationCode, expense_d_gdcode, expense_d_mobile, expense_d_orderId ]
+    filterGuidance:
+      - "查商品：商品名称=expense_d_commName（有全文索引，当前仅作 PRODUCT_NAME 维度分组，未开放为过滤列）；商品类别名称=expense_d_commCodeName（可过滤，LIKE 无索引）；货号/SKU=expense_d_gdcode（等值，有索引）；三者语义不同，不得混用（旧文案把“商品名”映射到类别名，已按 CRM 源码纠正）"
+      - "查门店：只能用门店编码 expense_d_stationCode（op=，有 index_stationCode）。expense_d_stationName 无索引，禁止名过滤；用户给的名称不完整/不确定时先按 member 实体 member_allot_stationName 模糊解析（多候选→把编码+名称列给用户确认是哪家店；0 候选→请用户给编码），拿到唯一编码后再回来等值过滤"
+      - "守卫（服务端强制）：明细行必须带时间范围（≤92 天）或 expense_d_mobile 或 expense_d_orderId 之一；手机号/流水号定向可免时间窗，仅限单会员/单订单核查；expense_d_mobile 仅支持精确匹配，禁止 LIKE/前缀/包含模糊匹配"
+    queryGuard:
+      requiredAnyOf: [ timeRange, expense_d_mobile, expense_d_orderId ]
+      constraints:
+        maxTimeRangeDays: 92
+        defaultLimit: 500
+    relationships:
+      # detail→member 单向 1:1：明细为中心关联会员属性（性别/要客），明细度量不放大。
+      # 反向 member→detail 已在 member 侧声明为 to_many，由粒度守卫保证只允许 detail 粒度度量。
+      - target: member
+        type: "LEFT JOIN"
+        cardinality: to_one
+        "on": "ed.expense_d_mobile = mv.member_mobile"
+        joinFilters: [ "(mv.del_flag = '0' OR mv.member_mobile IS NULL)" ]
+      # detail→order 待 expense_orderId 在订单头侧唯一性核查通过后再声明 to_one；
+      # 在此之前三表组合请用 adhocQueryBatch 拆成独立查询块，不做 detail↔order 直连。
+
+constraints:
+  maxLimit: 1000
+  defaultLimit: 100
+  maxDimensions: 5
+  maxMeasures: 10
+  maxFilters: 10

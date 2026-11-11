@@ -1,0 +1,891 @@
+{
+  "all" : [ {
+    "caliber" : "member_info_view del_flag='0'；只统计会员人数与性别分布； 2026-11-09 口径变更：消费金额不再取会员视图快照字段 member_expense_totalsum（来源错误）， 本指标移除累计消费/有消费会员数/人均消费三项，消费金额请查 MEMBER_CONSUMPTION（订单实付 expense_realamt 汇总）； 不返回任何个人级字段；可按分配门店 member_allot_store 限定范围，不支持租户（2026-10-30 业务决策取消租户）；2026-11-02 口径变更：数据源从 member_info 切换为 member_info_view； CRM 会员信息列表页（MemberInfoController → MemberInfoService.findPage → MemberInfoDao.findList）实际查询 member_info_view、固定条件仅 del_flag='0'，与本指标取数来源和过滤完全一致，人数可直接与 CRM 列表页对齐；member_info_view 是 member_info 行更新后由触发器同步的物理表（不是 SQL 视图），member_info 有效会员 628,527 行与它的 428,930 行差异属触发器同步范围背景，不影响与 CRM 列表页的一致性； member_allot_store 存 sys_office.HD_ID（8 位），与 member_info.office_id 不是同一字段，该列为空的会员在 CRM 设置机构范围时会被完全排除",
+    "defaultSortBy" : null,
+    "derived" : [ ],
+    "dimensions" : [ "STATION" ],
+    "domain" : "member",
+    "filters" : [ {
+      "code" : "STATION",
+      "hint" : "门店编码"
+    } ],
+    "limitDefault" : 100,
+    "limitMax" : 500,
+    "measures" : [ {
+      "alias" : "total_members",
+      "code" : "TOTAL_MEMBERS",
+      "unit" : "COUNT"
+    }, {
+      "alias" : "male_count",
+      "code" : "MALE_COUNT",
+      "unit" : "COUNT"
+    }, {
+      "alias" : "female_count",
+      "code" : "FEMALE_COUNT",
+      "unit" : "COUNT"
+    }, {
+      "alias" : "unknown_count",
+      "code" : "UNKNOWN_COUNT",
+      "unit" : "COUNT"
+    } ],
+    "metric" : "MEMBER_OVERVIEW",
+    "sortable" : [ "TOTAL_MEMBERS" ],
+    "status" : "CONFIRMED",
+    "timeBased" : false,
+    "title" : "会员总览（人数）",
+    "withTotalRow" : false
+  }, {
+    "caliber" : "按 member_created 落入区间（左闭右开，含结束日全天）的会员计数；基线 del_flag='0'；归属门店＝注册门店 member_store（2026-10-29 确认，非分配店）； 缺省窗口近一年半；不支持租户（2026-10-30 取消）；2026-11-02 口径变更：数据源从 member_info 切换为 member_info_view",
+    "defaultSortBy" : "NEW_MEMBERS",
+    "derived" : [ ],
+    "dimensions" : [ "STORE" ],
+    "domain" : "member",
+    "filters" : [ {
+      "code" : "STORE",
+      "hint" : "门店编码"
+    } ],
+    "limitDefault" : 500,
+    "limitMax" : 2000,
+    "measures" : [ {
+      "alias" : "new_member_count",
+      "code" : "NEW_MEMBERS",
+      "unit" : "COUNT"
+    } ],
+    "metric" : "MEMBER_NEW",
+    "sortable" : [ "NEW_MEMBERS" ],
+    "status" : "CONFIRMED",
+    "timeBased" : true,
+    "title" : "新增会员数",
+    "withTotalRow" : true
+  }, {
+    "caliber" : "活跃＝查询窗口内有 ≥1 笔有效订单；窗口缺省近 3 个月（2026-10-29 确认，不取 CRM 业务状态字段）； 按订单表 expense_mobile 去重计数（小酒喔所有消费均计会员消费，不 JOIN member_info 验证身份）； 有效订单 expense_state='10' AND del_flag='0'；不支持租户（2026-10-30 取消，expense_tenant 61.6% 为空且非空唯一值只有一）； 真实库实测 mobile 列 391,093 行零空值",
+    "defaultSortBy" : "ACTIVE_MEMBERS",
+    "derived" : [ ],
+    "dimensions" : [ "STATION" ],
+    "domain" : "member",
+    "filters" : [ {
+      "code" : "STATION",
+      "hint" : "门店编码"
+    } ],
+    "limitDefault" : 500,
+    "limitMax" : 2000,
+    "measures" : [ {
+      "alias" : "active_member_count",
+      "code" : "ACTIVE_MEMBERS",
+      "unit" : "COUNT"
+    }, {
+      "alias" : "order_count",
+      "code" : "ORDERS",
+      "unit" : ""
+    } ],
+    "metric" : "ACTIVE_MEMBER",
+    "sortable" : [ "ACTIVE_MEMBERS", "ORDERS" ],
+    "status" : "CONFIRMED",
+    "timeBased" : true,
+    "title" : "活跃会员数（近3个月）",
+    "withTotalRow" : true
+  }, {
+    "caliber" : "存量会员按所选层级字段分组计数（无时间条件）；2026-11-10 补齐 company_level / city_level / store_level / personal_level / haiding_level， 现已覆盖追问候选的全部 8 个级别维度（新会员等级、海鼎级别、公司级别、城市级别、门店级别、个人级别、一年半销售级别、总销售级别）+ 客户级别/维护级别/消费层级，共 11 个分组维度； 空值统一按 nullDimensionLabel='未填写' 归并，不会产生空字符串分组；不支持租户（2026-10-30 取消）；2026-11-02 口径变更：数据源从 member_info 切换为 member_info_view； 级别语义按 CRM 源码：company_level=公司级别（业务称毛利级别，18 个月）、city_level=城市级别、store_level=门店级别、personal_level=个人级别、 half_year_level=一年半销售级别（18 个月）、total_year_level=总销售级别（全部时间）、haiding_level=reserved15 海鼎级别（中文标签）； 真库实测（member_info_view del_flag='0'）：company 21 个（AA~AC、BA~BC、CA~CC、DA~DC、EA~EC、FA~FC、GA~GC）、 halfYear 17 个（AA~AC…FA~FB）、totalYear 24 个（AA~AC 至 HA~HC）、city 8 个（A~H）、store 8 个（A~H）、 personal 8 个（a~f，仅 348 条非空）、haiding 9 个中文标签（高级会员/VIP/至尊VIP/PLUS会员/V级企业VIP/白金VIP/VV级企业VIP/企业VIP/喔淘会员）； set_level 只有编码、无中文名称映射，原样输出；company_level 的游离值 'A' 不在 member_info_view 中，不影响本指标",
+    "defaultSortBy" : "MEMBERS",
+    "derived" : [ ],
+    "dimensions" : [ "CUSTOMER_LEVEL", "NEW_LEVEL", "HAIDING_LEVEL", "COMPANY_LEVEL", "CITY_LEVEL", "STORE_LEVEL", "PERSONAL_LEVEL", "IMPORTANCE", "CONSUME_HIERARCHY", "HALF_YEAR_LEVEL", "TOTAL_YEAR_LEVEL" ],
+    "domain" : "member",
+    "filters" : [ {
+      "code" : "STORE",
+      "hint" : "门店编码"
+    } ],
+    "limitDefault" : 100,
+    "limitMax" : 500,
+    "measures" : [ {
+      "alias" : "member_count",
+      "code" : "MEMBERS",
+      "unit" : "COUNT"
+    } ],
+    "metric" : "MEMBER_LEVEL_DIST",
+    "sortable" : [ "MEMBERS" ],
+    "status" : "CONFIRMED",
+    "timeBased" : false,
+    "title" : "会员层级分布",
+    "withTotalRow" : false
+  }, {
+    "caliber" : "“由**阴历生日** member_yin_birthday（varchar(200)，格式 YYYY-M-D）经 STR_TO_DATE 解析后计算周岁再分桶：≤19/20-29/30-39/40-49/50-59/≥60/未知（2026-10-30 业务确认改用阴历：阳历 member_yang_birthday 真实库 100% 为空；仍不用 age 列，实测仅 421 条且不准）；空/不可解析/异常年份（<1900）归未知；生日仅作分桶计算输入，不输出原值；已接受阴历日期与阳历 CURDATE 直比的周岁偏差（约 ±1 个月，生日周内的用户可能错档一岁）；2026-11-02 口径变更：数据源从 member_info 切换为 member_info_view”",
+    "defaultSortBy" : "MEMBERS",
+    "derived" : [ ],
+    "dimensions" : [ "AGE_BAND" ],
+    "domain" : "member",
+    "filters" : [ {
+      "code" : "STORE",
+      "hint" : "门店编码"
+    } ],
+    "limitDefault" : 100,
+    "limitMax" : 500,
+    "measures" : [ {
+      "alias" : "member_count",
+      "code" : "MEMBERS",
+      "unit" : "COUNT"
+    } ],
+    "metric" : "AGE_DIST",
+    "sortable" : [ "MEMBERS" ],
+    "status" : "CONFIRMED",
+    "timeBased" : false,
+    "title" : "年龄分布",
+    "withTotalRow" : false
+  }, {
+    "caliber" : "口径＝查询窗口（缺省近一年半，2026-10-29 确认）内总实付消费 / 同期有消费会员数（按 expense_mobile 去重）； 按 expense_buyDate 重算而非直取 member_expense_totalsum_year 快照（CRM 会员列表页的金额区间用的是该 18 个月快照，非实时， 且其快照子查询未加 expense_state='10'，可能把已退单金额计入；本指标用订单实付实时汇总，两者不得声称等价）； 退单负行自然抵消（全局口径，此处不适用‘历史累计去负数’特例）； 不支持租户（2026-10-30 取消）",
+    "defaultSortBy" : "TOTAL_CONSUMPTION",
+    "derived" : [ "AVG_CONSUMPTION_PER_MEMBER" ],
+    "dimensions" : [ "STATION" ],
+    "domain" : "member",
+    "filters" : [ {
+      "code" : "STATION",
+      "hint" : "门店编码"
+    } ],
+    "limitDefault" : 500,
+    "limitMax" : 2000,
+    "measures" : [ {
+      "alias" : "total_consumption",
+      "code" : "TOTAL_CONSUMPTION",
+      "unit" : "CNY"
+    }, {
+      "alias" : "expense_member_count",
+      "code" : "ACTIVE_MEMBERS",
+      "unit" : "COUNT"
+    } ],
+    "metric" : "ANNUAL_AVG_CONSUMPTION",
+    "sortable" : [ "TOTAL_CONSUMPTION", "ACTIVE_MEMBERS" ],
+    "status" : "CONFIRMED",
+    "timeBased" : true,
+    "title" : "单客年均消费（近一年半）",
+    "withTotalRow" : true
+  }, {
+    "caliber" : "2026-11-09 口径变更：消费金额改取 expense_calendar_info.expense_realamt（订单头实付汇总）， 不再使用 member_info_view.member_expense_totalsum 快照字段。 主表=订单头 expense_calendar_info（1 单 1 行），受控 LEFT JOIN member_info_view（m）； 关联键 expense_mobile=member_mobile（真库 member_mobile 唯一 → 1:1 不乘行、金额不重复累计）。 有效订单 expense_state='10' AND del_flag='0'（退单负行自然抵消）； 仅统计能关联到有效会员（m.del_flag='0'）的订单，未注册会员的订单不计入会员消费； 订单手机号未匹配到会员时 LEFT JOIN 为空，已被上述条件排除，故不会重复计入。 门店取会员分配门店 member_allot_store（与 MEMBER_OVERVIEW 一致），非订单门店 expense_stationCode。 本指标不声明时间列：不传 startDate/endDate 即全部历史累计；传时间参数无效。 有消费会员数=COUNT(DISTINCT expense_mobile)，订单数=订单头行数； 人均消费=消费总额/有消费会员数（Java 端派生，不进 SQL）。 金额来源已按业务要求改到订单实付；门店归属沿用 MEMBER_OVERVIEW 的分配门店口径， 人均消费分母沿用原 EXPENSE_MEMBERS（有消费会员数）口径。 与 CRM 会员列表页口径差异：CRM 列表页金额区间用 18 个月快照 member_expense_totalsum_year （由订单 expense_realamt 回写、非实时，且快照子查询未加 expense_state='10'，可能含已退单金额）； 本指标用订单实付实时汇总（expense_state='10' AND del_flag='0'），两者在退单处理与更新时点上可能不同，不得声称等价。",
+    "defaultSortBy" : "TOTAL_EXPENSE",
+    "derived" : [ "AVG_EXPENSE_PER_BUYER" ],
+    "dimensions" : [ "STATION", "GENDER" ],
+    "domain" : "member",
+    "filters" : [ {
+      "code" : "STATION",
+      "hint" : "m.member_allot_store"
+    } ],
+    "limitDefault" : 100,
+    "limitMax" : 500,
+    "measures" : [ {
+      "alias" : "total_expense",
+      "code" : "TOTAL_EXPENSE",
+      "unit" : "CNY"
+    }, {
+      "alias" : "expense_member_count",
+      "code" : "BUYERS",
+      "unit" : "COUNT"
+    }, {
+      "alias" : "order_count",
+      "code" : "ORDERS",
+      "unit" : "COUNT"
+    } ],
+    "metric" : "MEMBER_CONSUMPTION",
+    "sortable" : [ "TOTAL_EXPENSE", "BUYERS" ],
+    "status" : "CONFIRMED",
+    "timeBased" : false,
+    "title" : "会员累计消费（订单实付）",
+    "withTotalRow" : true
+  }, {
+    "caliber" : "要客＝track=1 的会员（2026-11-02 同步自 CRM 会员池脑图）； 本指标为快照统计，只返回当前要客总数； 2026-11-09 口径变更：消费金额不再取会员视图快照字段 member_expense_totalsum / member_expense_totalsum_year（来源错误）， 本指标移除累计消费总额、近一年半消费总额与两项人均消费，要客消费请查 VIP_CONSUMPTION_BY_STORE（订单实付 expense_realamt 汇总，含合计行）； 不注入时间条件，总数不随时间窗口变化； 有效会员限定 del_flag='0'； 不支持租户（2026-10-30 业务决策取消）； 数据来源 member_info_view（由触发器从 member_info 同步）； 新增/踢出要客数请分别查询 VIP_NEW / VIP_CANCELLED 指标",
+    "defaultSortBy" : null,
+    "derived" : [ ],
+    "dimensions" : [ ],
+    "domain" : "member",
+    "filters" : [ {
+      "code" : "STORE",
+      "hint" : "门店编码"
+    } ],
+    "limitDefault" : 1,
+    "limitMax" : 1,
+    "measures" : [ {
+      "alias" : "vip_count",
+      "code" : "VIP_COUNT",
+      "unit" : "COUNT"
+    } ],
+    "metric" : "VIP_OVERVIEW",
+    "sortable" : [ ],
+    "status" : "CONFIRMED",
+    "timeBased" : false,
+    "title" : "要客总览（快照）",
+    "withTotalRow" : false
+  }, {
+    "caliber" : "按 track_time 落入区间（左闭右开含结束日全天）的新增要客计数； 新增要客＝track_time 在指定时间范围内的会员（track=1 为当前状态）； 有效会员限定 del_flag='0'； 缺省窗口近一年半； 不支持租户（2026-10-30 取消）； 数据来源 member_info_view",
+    "defaultSortBy" : null,
+    "derived" : [ ],
+    "dimensions" : [ ],
+    "domain" : "member",
+    "filters" : [ {
+      "code" : "STORE",
+      "hint" : "门店编码"
+    } ],
+    "limitDefault" : 1,
+    "limitMax" : 1,
+    "measures" : [ {
+      "alias" : "new_vip_count",
+      "code" : "NEW_VIPS",
+      "unit" : "COUNT"
+    } ],
+    "metric" : "VIP_NEW",
+    "sortable" : [ ],
+    "status" : "CONFIRMED",
+    "timeBased" : true,
+    "title" : "新增要客数",
+    "withTotalRow" : false
+  }, {
+    "caliber" : "按 track_cancel_time 落入区间（左闭右开含结束日全天）的踢出要客计数； 踢出要客＝track_cancel_time 在指定时间范围内的会员（track_cancel_time 非空即视为取消要客）； 有效会员限定 del_flag='0'； 缺省窗口近一年半； 不支持租户（2026-10-30 取消）； 数据来源 member_info_view",
+    "defaultSortBy" : null,
+    "derived" : [ ],
+    "dimensions" : [ ],
+    "domain" : "member",
+    "filters" : [ {
+      "code" : "STORE",
+      "hint" : "门店编码"
+    } ],
+    "limitDefault" : 1,
+    "limitMax" : 1,
+    "measures" : [ {
+      "alias" : "cancelled_vip_count",
+      "code" : "CANCELLED_VIPS",
+      "unit" : "COUNT"
+    } ],
+    "metric" : "VIP_CANCELLED",
+    "sortable" : [ ],
+    "status" : "CONFIRMED",
+    "timeBased" : true,
+    "title" : "踢出要客数",
+    "withTotalRow" : false
+  }, {
+    "caliber" : "按 track_user_id（跟踪人/负责导购）分组统计当前要客数（track=1）； 快照指标，不注入时间条件； 有效会员限定 del_flag='0'； 不支持租户（2026-10-30 取消）； 数据来源 member_info_view",
+    "defaultSortBy" : "VIP_COUNT",
+    "derived" : [ ],
+    "dimensions" : [ "STAFF" ],
+    "domain" : "member",
+    "filters" : [ {
+      "code" : "STORE",
+      "hint" : "门店编码"
+    } ],
+    "limitDefault" : 100,
+    "limitMax" : 500,
+    "measures" : [ {
+      "alias" : "vip_count",
+      "code" : "VIP_COUNT",
+      "unit" : "COUNT"
+    } ],
+    "metric" : "VIP_BY_STAFF",
+    "sortable" : [ "VIP_COUNT" ],
+    "status" : "CONFIRMED",
+    "timeBased" : false,
+    "title" : "按导购统计要客数",
+    "withTotalRow" : true
+  }, {
+    "caliber" : "按分配门店 member_allot_store 分组统计当前要客数（track=1）； 快照指标，不注入时间条件； 有效会员限定 del_flag='0'； 门店取分配门店（member_allot_store），非注册门店（member_store）； 不支持租户（2026-10-30 取消）； 数据来源 member_info_view",
+    "defaultSortBy" : "VIP_COUNT",
+    "derived" : [ ],
+    "dimensions" : [ "STORE" ],
+    "domain" : "member",
+    "filters" : [ {
+      "code" : "STORE",
+      "hint" : "门店编码"
+    } ],
+    "limitDefault" : 100,
+    "limitMax" : 500,
+    "measures" : [ {
+      "alias" : "vip_count",
+      "code" : "VIP_COUNT",
+      "unit" : "COUNT"
+    } ],
+    "metric" : "VIP_BY_STORE",
+    "sortable" : [ "VIP_COUNT" ],
+    "status" : "CONFIRMED",
+    "timeBased" : false,
+    "title" : "按门店统计要客数",
+    "withTotalRow" : true
+  }, {
+    "caliber" : "按会员分配门店 member_allot_store 分组统计要客（track=1）的消费； 2026-11-09 口径变更：消费总额改取 expense_calendar_info.expense_realamt（订单头实付汇总）， 不再使用 member_info_view.member_expense_totalsum（来源错误，粒度也不匹配）； 主表=订单头（1 单 1 行），受控 LEFT JOIN member_info_view（m）按 expense_mobile=member_mobile 关联 （真库 member_mobile 唯一 → 1:1 不乘行、金额不重复累计）； 有效订单 expense_state='10' AND del_flag='0'（退单负行自然抵消）；要客=track=1 且会员 del_flag='0'； 仅统计要客本人订单，未注册会员的订单不计入； 指标不声明时间列，不传时间参数即全部历史累计； 要客数在本粒度下为“有消费要客数”=COUNT(DISTINCT expense_mobile)，不等于 VIP_OVERVIEW 的当前要客总数； 人均消费＝消费总额/有消费要客数（Java 端派生）； 门店取分配门店，非注册门店，也非订单门店 expense_stationCode； 与 CRM 会员列表页金额口径不同：CRM 用 18 个月快照 member_expense_totalsum_year（非实时、快照子查询未加 expense_state='10'）， 本指标用订单实付实时汇总，两者在退单处理与更新时点上可能不同，不得声称等价； 不支持租户（2026-10-30 取消）",
+    "defaultSortBy" : "TOTAL_EXPENSE",
+    "derived" : [ "AVG_EXPENSE_PER_VIP" ],
+    "dimensions" : [ "STORE" ],
+    "domain" : "member",
+    "filters" : [ {
+      "code" : "STORE",
+      "hint" : "m.member_allot_store"
+    } ],
+    "limitDefault" : 100,
+    "limitMax" : 500,
+    "measures" : [ {
+      "alias" : "vip_count",
+      "code" : "VIP_BUYERS",
+      "unit" : "COUNT"
+    }, {
+      "alias" : "total_expense",
+      "code" : "TOTAL_EXPENSE",
+      "unit" : "CNY"
+    }, {
+      "alias" : "order_count",
+      "code" : "ORDERS",
+      "unit" : "COUNT"
+    } ],
+    "metric" : "VIP_CONSUMPTION_BY_STORE",
+    "sortable" : [ "TOTAL_EXPENSE", "VIP_BUYERS" ],
+    "status" : "CONFIRMED",
+    "timeBased" : false,
+    "title" : "按门店统计要客消费",
+    "withTotalRow" : true
+  }, {
+    "caliber" : "按性别（member_sex）分组统计当前要客数。要客＝track=1 的会员（2026-11-02 同步自 CRM 会员池脑图口径）； 快照指标，不注入时间条件，总数不随时间窗口变化。有效会员限定 del_flag='0'。性别取 member_sex：1=男、2=女，其余（含枚举 0 与 NULL）归并展示为“未知性别”，不做丢弃。 门店过滤用分配门店 member_allot_store（与 MEMBER_OVERVIEW / VIP_BY_STORE 一致），非注册门店 member_store。不支持租户维度筛选（2026-10-30 业务决策取消租户维度，统计聚焦门店）。 数据来源 member_info_view（由触发器从 member_info 同步）。合计行为全量有效要客数，非分组行之外的增量口径。",
+    "defaultSortBy" : "VIP_COUNT",
+    "derived" : [ ],
+    "dimensions" : [ "GENDER" ],
+    "domain" : "member",
+    "filters" : [ {
+      "code" : "STORE",
+      "hint" : "门店编码"
+    } ],
+    "limitDefault" : 100,
+    "limitMax" : 500,
+    "measures" : [ {
+      "alias" : "vip_count",
+      "code" : "VIP_COUNT",
+      "unit" : "COUNT"
+    } ],
+    "metric" : "VIP_BY_GENDER",
+    "sortable" : [ "VIP_COUNT" ],
+    "status" : "CONFIRMED",
+    "timeBased" : false,
+    "title" : "按性别统计要客数",
+    "withTotalRow" : true
+  }, {
+    "caliber" : "订单头表 1 单 1 行；expense_state='10' AND del_flag='0'；金额取实付 expense_realamt（VARCHAR，退单为负数行，SUM 自然抵消）； 时间左闭右开含结束日；可按门店限定范围，不支持租户（2026-10-30 业务决策取消：expense_tenant 61.6% 为空）",
+    "defaultSortBy" : "SALES",
+    "derived" : [ "AVG_ORDER_VALUE" ],
+    "dimensions" : [ "STATION" ],
+    "domain" : "order",
+    "filters" : [ {
+      "code" : "STATION",
+      "hint" : "门店编码"
+    } ],
+    "limitDefault" : 500,
+    "limitMax" : 2000,
+    "measures" : [ {
+      "alias" : "sales_amount",
+      "code" : "SALES",
+      "unit" : "CNY"
+    }, {
+      "alias" : "order_count",
+      "code" : "ORDERS",
+      "unit" : "COUNT"
+    } ],
+    "metric" : "STATION_SALES",
+    "sortable" : [ "SALES", "ORDERS" ],
+    "status" : "CONFIRMED",
+    "timeBased" : true,
+    "title" : "门店销售业绩",
+    "withTotalRow" : true
+  }, {
+    "caliber" : "基于消费明细表按 SKU=expense_d_gdcode 聚合；expense_d_state='10' AND del_flag='0'； 实付金额与销量均为 VARCHAR，走 NUM() 安全转换；SKU 无品牌字段；异常编码（如 198.0/298.0/99.0，商品名分别为 198plus 等）按真实商品统计，不过滤也不合并（2026-10-30 业务确认； 真实库窗口内 198.0 共 12,021 行、销售额 238 万元，排第 5 名）；不支持租户（明细表无租户字段，且 2026-10-30 全局取消）； 时间跨度上限 92 天：真实库实测单月窗口 1.2s 可返回，18 个月 75.8s（加 FORCE INDEX 仍 14.2s），超执行层 10s 上限；根因为窗口变大后优化器改为走 index_state ref（估算 775 万行 + temporary + filesort）； 金额口径按 CRM 源码：商品维度统计用明细行实付 expense_d_realamt（与本指标同列），整单优惠/抹零如何分摊到明细行 CRM 无分摊逻辑，不能与订单头实付 expense_realamt 直接等同",
+    "defaultSortBy" : "SALES",
+    "derived" : [ ],
+    "dimensions" : [ "SKU" ],
+    "domain" : "order",
+    "filters" : [ {
+      "code" : "STATION",
+      "hint" : "门店编码"
+    } ],
+    "limitDefault" : 10,
+    "limitMax" : 100,
+    "measures" : [ {
+      "alias" : "sales_amount",
+      "code" : "SALES",
+      "unit" : "CNY"
+    }, {
+      "alias" : "quantity",
+      "code" : "QTY",
+      "unit" : "PCS"
+    } ],
+    "metric" : "PRODUCT_RANKING",
+    "sortable" : [ "SALES", "QTY" ],
+    "status" : "CONFIRMED",
+    "timeBased" : true,
+    "title" : "商品销售排行",
+    "withTotalRow" : false
+  }, {
+    "caliber" : "回答‘男的买的多还是女的买的多’：订单头按会员性别分组对比，主口径=实付销售额 SALES，同屏输出订单数/有消费人数/组内销售额占比； 有效订单 expense_state='10' AND del_flag='0'（与 STATION_SALES 同源全局口径，退单负行自然抵消）； 性别取自关联会员表 member_sex（1=男/2=女，其余统一归‘未知性别’组；枚举 0 含义仍待确认，归入缺失组）； 关联键 expense_mobile=member_mobile（实测 member_mobile 全表唯一→1:1 不乘行、金额不重复累计）； 订单手机号未注册为会员的仍计入对应订单（LEFT JOIN 不丢单）； 【2026-10-30 业务确认】未关联到会员的订单与‘匹配到会员但性别缺失’合并为同一桶、统一标‘未知性别’（依 §1.5 #9 小酒喔所有消费均计会员消费，不单独拆‘未匹配会员’）； 缺省窗口近一年半（全局看板默认）；不支持租户（2026-10-30 取消）；三度量口径（实付/订单数/去重买家）由开发侧代拟，业务复核前若口径有出入以业务答复为准并更新本段",
+    "defaultSortBy" : "SALES",
+    "derived" : [ ],
+    "dimensions" : [ "GENDER" ],
+    "domain" : "order",
+    "filters" : [ {
+      "code" : "STATION",
+      "hint" : "门店编码"
+    } ],
+    "limitDefault" : 10,
+    "limitMax" : 100,
+    "measures" : [ {
+      "alias" : "sales_amount",
+      "code" : "SALES",
+      "unit" : "CNY"
+    }, {
+      "alias" : "order_count",
+      "code" : "ORDERS",
+      "unit" : "COUNT"
+    }, {
+      "alias" : "buyer_count",
+      "code" : "BUYERS",
+      "unit" : "COUNT"
+    } ],
+    "metric" : "GENDER_CONSUMPTION_COMPARE",
+    "sortable" : [ "SALES", "ORDERS", "BUYERS" ],
+    "status" : "CONFIRMED",
+    "timeBased" : true,
+    "title" : "男女消费对比",
+    "withTotalRow" : true
+  } ],
+  "member" : [ {
+    "caliber" : "member_info_view del_flag='0'；只统计会员人数与性别分布； 2026-11-09 口径变更：消费金额不再取会员视图快照字段 member_expense_totalsum（来源错误）， 本指标移除累计消费/有消费会员数/人均消费三项，消费金额请查 MEMBER_CONSUMPTION（订单实付 expense_realamt 汇总）； 不返回任何个人级字段；可按分配门店 member_allot_store 限定范围，不支持租户（2026-10-30 业务决策取消租户）；2026-11-02 口径变更：数据源从 member_info 切换为 member_info_view； CRM 会员信息列表页（MemberInfoController → MemberInfoService.findPage → MemberInfoDao.findList）实际查询 member_info_view、固定条件仅 del_flag='0'，与本指标取数来源和过滤完全一致，人数可直接与 CRM 列表页对齐；member_info_view 是 member_info 行更新后由触发器同步的物理表（不是 SQL 视图），member_info 有效会员 628,527 行与它的 428,930 行差异属触发器同步范围背景，不影响与 CRM 列表页的一致性； member_allot_store 存 sys_office.HD_ID（8 位），与 member_info.office_id 不是同一字段，该列为空的会员在 CRM 设置机构范围时会被完全排除",
+    "defaultSortBy" : null,
+    "derived" : [ ],
+    "dimensions" : [ "STATION" ],
+    "domain" : "member",
+    "filters" : [ {
+      "code" : "STATION",
+      "hint" : "门店编码"
+    } ],
+    "limitDefault" : 100,
+    "limitMax" : 500,
+    "measures" : [ {
+      "alias" : "total_members",
+      "code" : "TOTAL_MEMBERS",
+      "unit" : "COUNT"
+    }, {
+      "alias" : "male_count",
+      "code" : "MALE_COUNT",
+      "unit" : "COUNT"
+    }, {
+      "alias" : "female_count",
+      "code" : "FEMALE_COUNT",
+      "unit" : "COUNT"
+    }, {
+      "alias" : "unknown_count",
+      "code" : "UNKNOWN_COUNT",
+      "unit" : "COUNT"
+    } ],
+    "metric" : "MEMBER_OVERVIEW",
+    "sortable" : [ "TOTAL_MEMBERS" ],
+    "status" : "CONFIRMED",
+    "timeBased" : false,
+    "title" : "会员总览（人数）",
+    "withTotalRow" : false
+  }, {
+    "caliber" : "按 member_created 落入区间（左闭右开，含结束日全天）的会员计数；基线 del_flag='0'；归属门店＝注册门店 member_store（2026-10-29 确认，非分配店）； 缺省窗口近一年半；不支持租户（2026-10-30 取消）；2026-11-02 口径变更：数据源从 member_info 切换为 member_info_view",
+    "defaultSortBy" : "NEW_MEMBERS",
+    "derived" : [ ],
+    "dimensions" : [ "STORE" ],
+    "domain" : "member",
+    "filters" : [ {
+      "code" : "STORE",
+      "hint" : "门店编码"
+    } ],
+    "limitDefault" : 500,
+    "limitMax" : 2000,
+    "measures" : [ {
+      "alias" : "new_member_count",
+      "code" : "NEW_MEMBERS",
+      "unit" : "COUNT"
+    } ],
+    "metric" : "MEMBER_NEW",
+    "sortable" : [ "NEW_MEMBERS" ],
+    "status" : "CONFIRMED",
+    "timeBased" : true,
+    "title" : "新增会员数",
+    "withTotalRow" : true
+  }, {
+    "caliber" : "活跃＝查询窗口内有 ≥1 笔有效订单；窗口缺省近 3 个月（2026-10-29 确认，不取 CRM 业务状态字段）； 按订单表 expense_mobile 去重计数（小酒喔所有消费均计会员消费，不 JOIN member_info 验证身份）； 有效订单 expense_state='10' AND del_flag='0'；不支持租户（2026-10-30 取消，expense_tenant 61.6% 为空且非空唯一值只有一）； 真实库实测 mobile 列 391,093 行零空值",
+    "defaultSortBy" : "ACTIVE_MEMBERS",
+    "derived" : [ ],
+    "dimensions" : [ "STATION" ],
+    "domain" : "member",
+    "filters" : [ {
+      "code" : "STATION",
+      "hint" : "门店编码"
+    } ],
+    "limitDefault" : 500,
+    "limitMax" : 2000,
+    "measures" : [ {
+      "alias" : "active_member_count",
+      "code" : "ACTIVE_MEMBERS",
+      "unit" : "COUNT"
+    }, {
+      "alias" : "order_count",
+      "code" : "ORDERS",
+      "unit" : ""
+    } ],
+    "metric" : "ACTIVE_MEMBER",
+    "sortable" : [ "ACTIVE_MEMBERS", "ORDERS" ],
+    "status" : "CONFIRMED",
+    "timeBased" : true,
+    "title" : "活跃会员数（近3个月）",
+    "withTotalRow" : true
+  }, {
+    "caliber" : "存量会员按所选层级字段分组计数（无时间条件）；2026-11-10 补齐 company_level / city_level / store_level / personal_level / haiding_level， 现已覆盖追问候选的全部 8 个级别维度（新会员等级、海鼎级别、公司级别、城市级别、门店级别、个人级别、一年半销售级别、总销售级别）+ 客户级别/维护级别/消费层级，共 11 个分组维度； 空值统一按 nullDimensionLabel='未填写' 归并，不会产生空字符串分组；不支持租户（2026-10-30 取消）；2026-11-02 口径变更：数据源从 member_info 切换为 member_info_view； 级别语义按 CRM 源码：company_level=公司级别（业务称毛利级别，18 个月）、city_level=城市级别、store_level=门店级别、personal_level=个人级别、 half_year_level=一年半销售级别（18 个月）、total_year_level=总销售级别（全部时间）、haiding_level=reserved15 海鼎级别（中文标签）； 真库实测（member_info_view del_flag='0'）：company 21 个（AA~AC、BA~BC、CA~CC、DA~DC、EA~EC、FA~FC、GA~GC）、 halfYear 17 个（AA~AC…FA~FB）、totalYear 24 个（AA~AC 至 HA~HC）、city 8 个（A~H）、store 8 个（A~H）、 personal 8 个（a~f，仅 348 条非空）、haiding 9 个中文标签（高级会员/VIP/至尊VIP/PLUS会员/V级企业VIP/白金VIP/VV级企业VIP/企业VIP/喔淘会员）； set_level 只有编码、无中文名称映射，原样输出；company_level 的游离值 'A' 不在 member_info_view 中，不影响本指标",
+    "defaultSortBy" : "MEMBERS",
+    "derived" : [ ],
+    "dimensions" : [ "CUSTOMER_LEVEL", "NEW_LEVEL", "HAIDING_LEVEL", "COMPANY_LEVEL", "CITY_LEVEL", "STORE_LEVEL", "PERSONAL_LEVEL", "IMPORTANCE", "CONSUME_HIERARCHY", "HALF_YEAR_LEVEL", "TOTAL_YEAR_LEVEL" ],
+    "domain" : "member",
+    "filters" : [ {
+      "code" : "STORE",
+      "hint" : "门店编码"
+    } ],
+    "limitDefault" : 100,
+    "limitMax" : 500,
+    "measures" : [ {
+      "alias" : "member_count",
+      "code" : "MEMBERS",
+      "unit" : "COUNT"
+    } ],
+    "metric" : "MEMBER_LEVEL_DIST",
+    "sortable" : [ "MEMBERS" ],
+    "status" : "CONFIRMED",
+    "timeBased" : false,
+    "title" : "会员层级分布",
+    "withTotalRow" : false
+  }, {
+    "caliber" : "“由**阴历生日** member_yin_birthday（varchar(200)，格式 YYYY-M-D）经 STR_TO_DATE 解析后计算周岁再分桶：≤19/20-29/30-39/40-49/50-59/≥60/未知（2026-10-30 业务确认改用阴历：阳历 member_yang_birthday 真实库 100% 为空；仍不用 age 列，实测仅 421 条且不准）；空/不可解析/异常年份（<1900）归未知；生日仅作分桶计算输入，不输出原值；已接受阴历日期与阳历 CURDATE 直比的周岁偏差（约 ±1 个月，生日周内的用户可能错档一岁）；2026-11-02 口径变更：数据源从 member_info 切换为 member_info_view”",
+    "defaultSortBy" : "MEMBERS",
+    "derived" : [ ],
+    "dimensions" : [ "AGE_BAND" ],
+    "domain" : "member",
+    "filters" : [ {
+      "code" : "STORE",
+      "hint" : "门店编码"
+    } ],
+    "limitDefault" : 100,
+    "limitMax" : 500,
+    "measures" : [ {
+      "alias" : "member_count",
+      "code" : "MEMBERS",
+      "unit" : "COUNT"
+    } ],
+    "metric" : "AGE_DIST",
+    "sortable" : [ "MEMBERS" ],
+    "status" : "CONFIRMED",
+    "timeBased" : false,
+    "title" : "年龄分布",
+    "withTotalRow" : false
+  }, {
+    "caliber" : "口径＝查询窗口（缺省近一年半，2026-10-29 确认）内总实付消费 / 同期有消费会员数（按 expense_mobile 去重）； 按 expense_buyDate 重算而非直取 member_expense_totalsum_year 快照（CRM 会员列表页的金额区间用的是该 18 个月快照，非实时， 且其快照子查询未加 expense_state='10'，可能把已退单金额计入；本指标用订单实付实时汇总，两者不得声称等价）； 退单负行自然抵消（全局口径，此处不适用‘历史累计去负数’特例）； 不支持租户（2026-10-30 取消）",
+    "defaultSortBy" : "TOTAL_CONSUMPTION",
+    "derived" : [ "AVG_CONSUMPTION_PER_MEMBER" ],
+    "dimensions" : [ "STATION" ],
+    "domain" : "member",
+    "filters" : [ {
+      "code" : "STATION",
+      "hint" : "门店编码"
+    } ],
+    "limitDefault" : 500,
+    "limitMax" : 2000,
+    "measures" : [ {
+      "alias" : "total_consumption",
+      "code" : "TOTAL_CONSUMPTION",
+      "unit" : "CNY"
+    }, {
+      "alias" : "expense_member_count",
+      "code" : "ACTIVE_MEMBERS",
+      "unit" : "COUNT"
+    } ],
+    "metric" : "ANNUAL_AVG_CONSUMPTION",
+    "sortable" : [ "TOTAL_CONSUMPTION", "ACTIVE_MEMBERS" ],
+    "status" : "CONFIRMED",
+    "timeBased" : true,
+    "title" : "单客年均消费（近一年半）",
+    "withTotalRow" : true
+  }, {
+    "caliber" : "2026-11-09 口径变更：消费金额改取 expense_calendar_info.expense_realamt（订单头实付汇总）， 不再使用 member_info_view.member_expense_totalsum 快照字段。 主表=订单头 expense_calendar_info（1 单 1 行），受控 LEFT JOIN member_info_view（m）； 关联键 expense_mobile=member_mobile（真库 member_mobile 唯一 → 1:1 不乘行、金额不重复累计）。 有效订单 expense_state='10' AND del_flag='0'（退单负行自然抵消）； 仅统计能关联到有效会员（m.del_flag='0'）的订单，未注册会员的订单不计入会员消费； 订单手机号未匹配到会员时 LEFT JOIN 为空，已被上述条件排除，故不会重复计入。 门店取会员分配门店 member_allot_store（与 MEMBER_OVERVIEW 一致），非订单门店 expense_stationCode。 本指标不声明时间列：不传 startDate/endDate 即全部历史累计；传时间参数无效。 有消费会员数=COUNT(DISTINCT expense_mobile)，订单数=订单头行数； 人均消费=消费总额/有消费会员数（Java 端派生，不进 SQL）。 金额来源已按业务要求改到订单实付；门店归属沿用 MEMBER_OVERVIEW 的分配门店口径， 人均消费分母沿用原 EXPENSE_MEMBERS（有消费会员数）口径。 与 CRM 会员列表页口径差异：CRM 列表页金额区间用 18 个月快照 member_expense_totalsum_year （由订单 expense_realamt 回写、非实时，且快照子查询未加 expense_state='10'，可能含已退单金额）； 本指标用订单实付实时汇总（expense_state='10' AND del_flag='0'），两者在退单处理与更新时点上可能不同，不得声称等价。",
+    "defaultSortBy" : "TOTAL_EXPENSE",
+    "derived" : [ "AVG_EXPENSE_PER_BUYER" ],
+    "dimensions" : [ "STATION", "GENDER" ],
+    "domain" : "member",
+    "filters" : [ {
+      "code" : "STATION",
+      "hint" : "m.member_allot_store"
+    } ],
+    "limitDefault" : 100,
+    "limitMax" : 500,
+    "measures" : [ {
+      "alias" : "total_expense",
+      "code" : "TOTAL_EXPENSE",
+      "unit" : "CNY"
+    }, {
+      "alias" : "expense_member_count",
+      "code" : "BUYERS",
+      "unit" : "COUNT"
+    }, {
+      "alias" : "order_count",
+      "code" : "ORDERS",
+      "unit" : "COUNT"
+    } ],
+    "metric" : "MEMBER_CONSUMPTION",
+    "sortable" : [ "TOTAL_EXPENSE", "BUYERS" ],
+    "status" : "CONFIRMED",
+    "timeBased" : false,
+    "title" : "会员累计消费（订单实付）",
+    "withTotalRow" : true
+  }, {
+    "caliber" : "要客＝track=1 的会员（2026-11-02 同步自 CRM 会员池脑图）； 本指标为快照统计，只返回当前要客总数； 2026-11-09 口径变更：消费金额不再取会员视图快照字段 member_expense_totalsum / member_expense_totalsum_year（来源错误）， 本指标移除累计消费总额、近一年半消费总额与两项人均消费，要客消费请查 VIP_CONSUMPTION_BY_STORE（订单实付 expense_realamt 汇总，含合计行）； 不注入时间条件，总数不随时间窗口变化； 有效会员限定 del_flag='0'； 不支持租户（2026-10-30 业务决策取消）； 数据来源 member_info_view（由触发器从 member_info 同步）； 新增/踢出要客数请分别查询 VIP_NEW / VIP_CANCELLED 指标",
+    "defaultSortBy" : null,
+    "derived" : [ ],
+    "dimensions" : [ ],
+    "domain" : "member",
+    "filters" : [ {
+      "code" : "STORE",
+      "hint" : "门店编码"
+    } ],
+    "limitDefault" : 1,
+    "limitMax" : 1,
+    "measures" : [ {
+      "alias" : "vip_count",
+      "code" : "VIP_COUNT",
+      "unit" : "COUNT"
+    } ],
+    "metric" : "VIP_OVERVIEW",
+    "sortable" : [ ],
+    "status" : "CONFIRMED",
+    "timeBased" : false,
+    "title" : "要客总览（快照）",
+    "withTotalRow" : false
+  }, {
+    "caliber" : "按 track_time 落入区间（左闭右开含结束日全天）的新增要客计数； 新增要客＝track_time 在指定时间范围内的会员（track=1 为当前状态）； 有效会员限定 del_flag='0'； 缺省窗口近一年半； 不支持租户（2026-10-30 取消）； 数据来源 member_info_view",
+    "defaultSortBy" : null,
+    "derived" : [ ],
+    "dimensions" : [ ],
+    "domain" : "member",
+    "filters" : [ {
+      "code" : "STORE",
+      "hint" : "门店编码"
+    } ],
+    "limitDefault" : 1,
+    "limitMax" : 1,
+    "measures" : [ {
+      "alias" : "new_vip_count",
+      "code" : "NEW_VIPS",
+      "unit" : "COUNT"
+    } ],
+    "metric" : "VIP_NEW",
+    "sortable" : [ ],
+    "status" : "CONFIRMED",
+    "timeBased" : true,
+    "title" : "新增要客数",
+    "withTotalRow" : false
+  }, {
+    "caliber" : "按 track_cancel_time 落入区间（左闭右开含结束日全天）的踢出要客计数； 踢出要客＝track_cancel_time 在指定时间范围内的会员（track_cancel_time 非空即视为取消要客）； 有效会员限定 del_flag='0'； 缺省窗口近一年半； 不支持租户（2026-10-30 取消）； 数据来源 member_info_view",
+    "defaultSortBy" : null,
+    "derived" : [ ],
+    "dimensions" : [ ],
+    "domain" : "member",
+    "filters" : [ {
+      "code" : "STORE",
+      "hint" : "门店编码"
+    } ],
+    "limitDefault" : 1,
+    "limitMax" : 1,
+    "measures" : [ {
+      "alias" : "cancelled_vip_count",
+      "code" : "CANCELLED_VIPS",
+      "unit" : "COUNT"
+    } ],
+    "metric" : "VIP_CANCELLED",
+    "sortable" : [ ],
+    "status" : "CONFIRMED",
+    "timeBased" : true,
+    "title" : "踢出要客数",
+    "withTotalRow" : false
+  }, {
+    "caliber" : "按 track_user_id（跟踪人/负责导购）分组统计当前要客数（track=1）； 快照指标，不注入时间条件； 有效会员限定 del_flag='0'； 不支持租户（2026-10-30 取消）； 数据来源 member_info_view",
+    "defaultSortBy" : "VIP_COUNT",
+    "derived" : [ ],
+    "dimensions" : [ "STAFF" ],
+    "domain" : "member",
+    "filters" : [ {
+      "code" : "STORE",
+      "hint" : "门店编码"
+    } ],
+    "limitDefault" : 100,
+    "limitMax" : 500,
+    "measures" : [ {
+      "alias" : "vip_count",
+      "code" : "VIP_COUNT",
+      "unit" : "COUNT"
+    } ],
+    "metric" : "VIP_BY_STAFF",
+    "sortable" : [ "VIP_COUNT" ],
+    "status" : "CONFIRMED",
+    "timeBased" : false,
+    "title" : "按导购统计要客数",
+    "withTotalRow" : true
+  }, {
+    "caliber" : "按分配门店 member_allot_store 分组统计当前要客数（track=1）； 快照指标，不注入时间条件； 有效会员限定 del_flag='0'； 门店取分配门店（member_allot_store），非注册门店（member_store）； 不支持租户（2026-10-30 取消）； 数据来源 member_info_view",
+    "defaultSortBy" : "VIP_COUNT",
+    "derived" : [ ],
+    "dimensions" : [ "STORE" ],
+    "domain" : "member",
+    "filters" : [ {
+      "code" : "STORE",
+      "hint" : "门店编码"
+    } ],
+    "limitDefault" : 100,
+    "limitMax" : 500,
+    "measures" : [ {
+      "alias" : "vip_count",
+      "code" : "VIP_COUNT",
+      "unit" : "COUNT"
+    } ],
+    "metric" : "VIP_BY_STORE",
+    "sortable" : [ "VIP_COUNT" ],
+    "status" : "CONFIRMED",
+    "timeBased" : false,
+    "title" : "按门店统计要客数",
+    "withTotalRow" : true
+  }, {
+    "caliber" : "按会员分配门店 member_allot_store 分组统计要客（track=1）的消费； 2026-11-09 口径变更：消费总额改取 expense_calendar_info.expense_realamt（订单头实付汇总）， 不再使用 member_info_view.member_expense_totalsum（来源错误，粒度也不匹配）； 主表=订单头（1 单 1 行），受控 LEFT JOIN member_info_view（m）按 expense_mobile=member_mobile 关联 （真库 member_mobile 唯一 → 1:1 不乘行、金额不重复累计）； 有效订单 expense_state='10' AND del_flag='0'（退单负行自然抵消）；要客=track=1 且会员 del_flag='0'； 仅统计要客本人订单，未注册会员的订单不计入； 指标不声明时间列，不传时间参数即全部历史累计； 要客数在本粒度下为“有消费要客数”=COUNT(DISTINCT expense_mobile)，不等于 VIP_OVERVIEW 的当前要客总数； 人均消费＝消费总额/有消费要客数（Java 端派生）； 门店取分配门店，非注册门店，也非订单门店 expense_stationCode； 与 CRM 会员列表页金额口径不同：CRM 用 18 个月快照 member_expense_totalsum_year（非实时、快照子查询未加 expense_state='10'）， 本指标用订单实付实时汇总，两者在退单处理与更新时点上可能不同，不得声称等价； 不支持租户（2026-10-30 取消）",
+    "defaultSortBy" : "TOTAL_EXPENSE",
+    "derived" : [ "AVG_EXPENSE_PER_VIP" ],
+    "dimensions" : [ "STORE" ],
+    "domain" : "member",
+    "filters" : [ {
+      "code" : "STORE",
+      "hint" : "m.member_allot_store"
+    } ],
+    "limitDefault" : 100,
+    "limitMax" : 500,
+    "measures" : [ {
+      "alias" : "vip_count",
+      "code" : "VIP_BUYERS",
+      "unit" : "COUNT"
+    }, {
+      "alias" : "total_expense",
+      "code" : "TOTAL_EXPENSE",
+      "unit" : "CNY"
+    }, {
+      "alias" : "order_count",
+      "code" : "ORDERS",
+      "unit" : "COUNT"
+    } ],
+    "metric" : "VIP_CONSUMPTION_BY_STORE",
+    "sortable" : [ "TOTAL_EXPENSE", "VIP_BUYERS" ],
+    "status" : "CONFIRMED",
+    "timeBased" : false,
+    "title" : "按门店统计要客消费",
+    "withTotalRow" : true
+  }, {
+    "caliber" : "按性别（member_sex）分组统计当前要客数。要客＝track=1 的会员（2026-11-02 同步自 CRM 会员池脑图口径）； 快照指标，不注入时间条件，总数不随时间窗口变化。有效会员限定 del_flag='0'。性别取 member_sex：1=男、2=女，其余（含枚举 0 与 NULL）归并展示为“未知性别”，不做丢弃。 门店过滤用分配门店 member_allot_store（与 MEMBER_OVERVIEW / VIP_BY_STORE 一致），非注册门店 member_store。不支持租户维度筛选（2026-10-30 业务决策取消租户维度，统计聚焦门店）。 数据来源 member_info_view（由触发器从 member_info 同步）。合计行为全量有效要客数，非分组行之外的增量口径。",
+    "defaultSortBy" : "VIP_COUNT",
+    "derived" : [ ],
+    "dimensions" : [ "GENDER" ],
+    "domain" : "member",
+    "filters" : [ {
+      "code" : "STORE",
+      "hint" : "门店编码"
+    } ],
+    "limitDefault" : 100,
+    "limitMax" : 500,
+    "measures" : [ {
+      "alias" : "vip_count",
+      "code" : "VIP_COUNT",
+      "unit" : "COUNT"
+    } ],
+    "metric" : "VIP_BY_GENDER",
+    "sortable" : [ "VIP_COUNT" ],
+    "status" : "CONFIRMED",
+    "timeBased" : false,
+    "title" : "按性别统计要客数",
+    "withTotalRow" : true
+  } ],
+  "order" : [ {
+    "caliber" : "订单头表 1 单 1 行；expense_state='10' AND del_flag='0'；金额取实付 expense_realamt（VARCHAR，退单为负数行，SUM 自然抵消）； 时间左闭右开含结束日；可按门店限定范围，不支持租户（2026-10-30 业务决策取消：expense_tenant 61.6% 为空）",
+    "defaultSortBy" : "SALES",
+    "derived" : [ "AVG_ORDER_VALUE" ],
+    "dimensions" : [ "STATION" ],
+    "domain" : "order",
+    "filters" : [ {
+      "code" : "STATION",
+      "hint" : "门店编码"
+    } ],
+    "limitDefault" : 500,
+    "limitMax" : 2000,
+    "measures" : [ {
+      "alias" : "sales_amount",
+      "code" : "SALES",
+      "unit" : "CNY"
+    }, {
+      "alias" : "order_count",
+      "code" : "ORDERS",
+      "unit" : "COUNT"
+    } ],
+    "metric" : "STATION_SALES",
+    "sortable" : [ "SALES", "ORDERS" ],
+    "status" : "CONFIRMED",
+    "timeBased" : true,
+    "title" : "门店销售业绩",
+    "withTotalRow" : true
+  }, {
+    "caliber" : "基于消费明细表按 SKU=expense_d_gdcode 聚合；expense_d_state='10' AND del_flag='0'； 实付金额与销量均为 VARCHAR，走 NUM() 安全转换；SKU 无品牌字段；异常编码（如 198.0/298.0/99.0，商品名分别为 198plus 等）按真实商品统计，不过滤也不合并（2026-10-30 业务确认； 真实库窗口内 198.0 共 12,021 行、销售额 238 万元，排第 5 名）；不支持租户（明细表无租户字段，且 2026-10-30 全局取消）； 时间跨度上限 92 天：真实库实测单月窗口 1.2s 可返回，18 个月 75.8s（加 FORCE INDEX 仍 14.2s），超执行层 10s 上限；根因为窗口变大后优化器改为走 index_state ref（估算 775 万行 + temporary + filesort）； 金额口径按 CRM 源码：商品维度统计用明细行实付 expense_d_realamt（与本指标同列），整单优惠/抹零如何分摊到明细行 CRM 无分摊逻辑，不能与订单头实付 expense_realamt 直接等同",
+    "defaultSortBy" : "SALES",
+    "derived" : [ ],
+    "dimensions" : [ "SKU" ],
+    "domain" : "order",
+    "filters" : [ {
+      "code" : "STATION",
+      "hint" : "门店编码"
+    } ],
+    "limitDefault" : 10,
+    "limitMax" : 100,
+    "measures" : [ {
+      "alias" : "sales_amount",
+      "code" : "SALES",
+      "unit" : "CNY"
+    }, {
+      "alias" : "quantity",
+      "code" : "QTY",
+      "unit" : "PCS"
+    } ],
+    "metric" : "PRODUCT_RANKING",
+    "sortable" : [ "SALES", "QTY" ],
+    "status" : "CONFIRMED",
+    "timeBased" : true,
+    "title" : "商品销售排行",
+    "withTotalRow" : false
+  }, {
+    "caliber" : "回答‘男的买的多还是女的买的多’：订单头按会员性别分组对比，主口径=实付销售额 SALES，同屏输出订单数/有消费人数/组内销售额占比； 有效订单 expense_state='10' AND del_flag='0'（与 STATION_SALES 同源全局口径，退单负行自然抵消）； 性别取自关联会员表 member_sex（1=男/2=女，其余统一归‘未知性别’组；枚举 0 含义仍待确认，归入缺失组）； 关联键 expense_mobile=member_mobile（实测 member_mobile 全表唯一→1:1 不乘行、金额不重复累计）； 订单手机号未注册为会员的仍计入对应订单（LEFT JOIN 不丢单）； 【2026-10-30 业务确认】未关联到会员的订单与‘匹配到会员但性别缺失’合并为同一桶、统一标‘未知性别’（依 §1.5 #9 小酒喔所有消费均计会员消费，不单独拆‘未匹配会员’）； 缺省窗口近一年半（全局看板默认）；不支持租户（2026-10-30 取消）；三度量口径（实付/订单数/去重买家）由开发侧代拟，业务复核前若口径有出入以业务答复为准并更新本段",
+    "defaultSortBy" : "SALES",
+    "derived" : [ ],
+    "dimensions" : [ "GENDER" ],
+    "domain" : "order",
+    "filters" : [ {
+      "code" : "STATION",
+      "hint" : "门店编码"
+    } ],
+    "limitDefault" : 10,
+    "limitMax" : 100,
+    "measures" : [ {
+      "alias" : "sales_amount",
+      "code" : "SALES",
+      "unit" : "CNY"
+    }, {
+      "alias" : "order_count",
+      "code" : "ORDERS",
+      "unit" : "COUNT"
+    }, {
+      "alias" : "buyer_count",
+      "code" : "BUYERS",
+      "unit" : "COUNT"
+    } ],
+    "metric" : "GENDER_CONSUMPTION_COMPARE",
+    "sortable" : [ "SALES", "ORDERS", "BUYERS" ],
+    "status" : "CONFIRMED",
+    "timeBased" : true,
+    "title" : "男女消费对比",
+    "withTotalRow" : true
+  } ]
+}
