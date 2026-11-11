@@ -23,7 +23,15 @@ export default defineConfig(({ mode }) => {
       host: true,
       open: true,
       proxy: {
-        // 统一前缀 → 转发时剥掉前缀
+        // SSE 长连接通道
+        '/sse': { target: backendUrl, changeOrigin: true },
+        // 聊天/检索/联网等业务接口
+        '/chat': { target: backendUrl, changeOrigin: true },
+        '/rag':  { target: backendUrl, changeOrigin: true },
+        '/internet': { target: backendUrl, changeOrigin: true },
+        // 媒体/音频子模块
+        '/api':  { target: backendUrl, changeOrigin: true },
+        // 统一前缀（兼容配置了 VITE_API_BASE_URL 的场景）
         '/crmAgent-api': {
           target: backendUrl,
           changeOrigin: true,

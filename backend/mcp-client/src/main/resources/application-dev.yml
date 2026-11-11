@@ -26,7 +26,7 @@ spring:
 #              url: https://mcp.api-inference.modelscope.net
 #              sse-endpoint: /1a39f528df3d44/sse
             server2:
-              url: http://localhost:9060
+              url: ${MCP_SERVER_URL:http://localhost:9060}
               sse-endpoint: /sse
         stdio:
           # 关掉：stdio MCP 用 npx 跑文件系统服务，生产/测试环境都不需要

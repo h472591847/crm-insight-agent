@@ -30,7 +30,10 @@ services:
       MYSQL_ROOT_HOST: "%"
       MYSQL_DATABASE: "crmtest"
     restart: always
+    command: ["--character-set-server=utf8mb4", "--collation-server=utf8mb4_unicode_ci", "--skip-character-set-client-handshake"]
     volumes:
       - ./volumes/mysql:/var/lib/mysql
+      # 强制 utf8mb4：防止 initdb 阶段 mysql 客户端以 latin1 解释 UTF-8 SQL 导致双重编码
+      - "./backend/mock-data/init/my.cnf:/etc/mysql/conf.d/charset.cnf:ro"
       # 首次初始化自动建表并导入 Mock 数据（先运行 backend/mock-data/generate_mock_data.py 生成）
       - "./backend/mock-data/init:/docker-entrypoint-initdb.d:ro"

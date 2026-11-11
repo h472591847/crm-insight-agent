@@ -329,6 +329,7 @@ def generate(members_n, orders_n):
         yin_birthday = "%d-%d-%d" % (rng.randrange(1965, 2005), rng.randrange(1, 13), rng.randrange(1, 29))
         staff_name = staff[1] if staff else None
         members.append({
+            "_raw_mobile": phone,  # 未转义原始值，订单生成时用（避免二次 sq 导致手机号含多余单引号）
             "member_name": sq(rng.choice(SURNAMES) + rng.choice(GIVEN) + (str(i) if rng.random() < 0.3 else "")),
             "member_sex": sex,
             "member_mobile": sq(phone),
@@ -400,10 +401,10 @@ def generate(members_n, orders_n):
         exp_type = "2" if platform != "0" else ("1" if rng.random() < 0.85 else "2")
 
         if rng.random() < unknown_rate:
-            mobile = sq(make_phone(rng, used_phones))       # 未注册手机号（不含 138 前缀特征约束，虚构即可）
+            mobile = make_phone(rng, used_phones)           # 未注册手机号：用原始值，orders tuple 里统一 sq()
         else:
             m = rng.choice(members)
-            mobile = m["member_mobile"]
+            mobile = m["_raw_mobile"]                       # 已注册会员：取原始值（避免对已 sq'd 的 member_mobile 二次转义）
 
         # 7% 退单：成对生成原单（正常）+ 退单（负金额）
         is_refund = rng.random() < 0.07
@@ -444,7 +445,7 @@ def generate(members_n, orders_n):
     year18_ago = now - timedelta(days=548)
     month1_ago = now - timedelta(days=30)
     for m in members:
-        recs = valid_orders_by_phone.get(m["member_mobile"], [])
+        recs = valid_orders_by_phone.get(m["_raw_mobile"], [])
         if not recs:
             continue
         m["member_expense_time"] = len(recs)
@@ -465,7 +466,7 @@ def generate(members_n, orders_n):
          sq(o[5]) if o[5] else None, sq("0"), sq(fmt_dt(now)))
         for o in OFFICES
     ]
-    member_cols = list(members[0].keys())
+    member_cols = [k for k in members[0].keys() if not k.startswith("_")]
     member_rows = [tuple(m[c] for c in member_cols) for m in members]
     # 删除会员不进视图（模拟触发器同步范围差异）
     view_rows = [r for r, m in zip(member_rows, members) if m["del_flag"] == 0]

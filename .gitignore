@@ -45,6 +45,20 @@ pnpm-debug.log*
 # ====================== Mock 数据生成产物（可由生成器重建） ======================
 **/mock-data/init/
 
+# ====================== Playwright DEMO 产物 ======================
+demo-e2e/node_modules/
+demo-e2e/.playwright-browsers/
+demo-e2e/demo-recordings/
+demo-e2e/playwright-report/
+demo-e2e/test-results/
+demo-e2e/package-lock.json
+
+# ====================== Trae / AI 工具 ======================
+.trae/
+.claude/
+.qoder/
+.superpowers/
+
 # ====================== 运行日志 ======================
 logs/
 *.log

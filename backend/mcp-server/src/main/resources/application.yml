@@ -17,10 +17,10 @@ spring:
           prompt: true
           completion: true
   mail:
-    host: ${MAIL_HOST}  # 邮箱host
-    port: ${MAIL_PORT}  # 邮箱port
-    username: ${MAIL_USERNAME}  # 邮箱用户名
-    password: ${MAIL_PASSWORD}  # 邮箱密码
+    host: ${MAIL_HOST:localhost}
+    port: ${MAIL_PORT:465}
+    username: ${MAIL_USERNAME:demo}
+    password: ${MAIL_PASSWORD:demo}
     properties:
       mail:
         smtp:
