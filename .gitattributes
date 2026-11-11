@@ -1,0 +1,21 @@
+# 统一换行符策略，避免 Windows 提交导致 Linux CI 的脚本无法执行
+* text=auto eol=lf
+
+# Windows 批处理脚本保持 CRLF
+*.bat  text eol=crlf
+*.cmd  text eol=crlf
+
+# Unix shell 脚本强制 LF
+*.sh   text eol=lf
+mvnw   text eol=lf
+
+# 二进制文件不做换行转换
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.gif  binary
+*.ico  binary
+*.jar  binary
+*.class binary
+*.xlsx binary
+*.xmind binary
