@@ -49,7 +49,7 @@ class GuessToolTest {
         when(mapper.guessStationByExact("哈市长江路"))
                 .thenReturn(List.of(station("01010601", "哈市长江路店", 1248)));
         when(mapper.guessStationByExact("鸿翔路"))
-                .thenReturn(List.of(station("01010609", "哈市鸿翔路店", 860)));
+                .thenReturn(List.of(station("01010609", "标杆旗舰店", 860)));
 
         JsonNode result = objectMapper.readTree(tool.guessStation(List.of("哈市长江路", "鸿翔路")));
 
@@ -70,7 +70,7 @@ class GuessToolTest {
         when(mapper.guessStationByExact("哈市长江路"))
                 .thenReturn(List.of(station("01010601", "哈市长江路店", 1248)));
         when(mapper.guessStationByExact("鸿翔路"))
-                .thenReturn(List.of(station("01010609", "哈市鸿翔路店", 860)));
+                .thenReturn(List.of(station("01010609", "标杆旗舰店", 860)));
 
         JsonNode result = objectMapper.readTree(tool.guessStation(List.of("哈市长江路、鸿翔路")));
 

@@ -58,7 +58,7 @@
     "title" : "新增会员数",
     "withTotalRow" : true
   }, {
-    "caliber" : "活跃＝查询窗口内有 ≥1 笔有效订单；窗口缺省近 3 个月（2026-10-29 确认，不取 CRM 业务状态字段）； 按订单表 expense_mobile 去重计数（小酒喔所有消费均计会员消费，不 JOIN member_info 验证身份）； 有效订单 expense_state='10' AND del_flag='0'；不支持租户（2026-10-30 取消，expense_tenant 61.6% 为空且非空唯一值只有一）； 真实库实测 mobile 列 391,093 行零空值",
+    "caliber" : "活跃＝查询窗口内有 ≥1 笔有效订单；窗口缺省近 3 个月（2026-10-29 确认，不取 CRM 业务状态字段）； 按订单表 expense_mobile 去重计数（标杆酒企所有消费均计会员消费，不 JOIN member_info 验证身份）； 有效订单 expense_state='10' AND del_flag='0'；不支持租户（2026-10-30 取消，expense_tenant 61.6% 为空且非空唯一值只有一）； 真实库实测 mobile 列 391,093 行零空值",
     "defaultSortBy" : "ACTIVE_MEMBERS",
     "derived" : [ ],
     "dimensions" : [ "STATION" ],
@@ -85,7 +85,7 @@
     "title" : "活跃会员数（近3个月）",
     "withTotalRow" : true
   }, {
-    "caliber" : "存量会员按所选层级字段分组计数（无时间条件）；2026-11-10 补齐 company_level / city_level / store_level / personal_level / haiding_level， 现已覆盖追问候选的全部 8 个级别维度（新会员等级、海鼎级别、公司级别、城市级别、门店级别、个人级别、一年半销售级别、总销售级别）+ 客户级别/维护级别/消费层级，共 11 个分组维度； 空值统一按 nullDimensionLabel='未填写' 归并，不会产生空字符串分组；不支持租户（2026-10-30 取消）；2026-11-02 口径变更：数据源从 member_info 切换为 member_info_view； 级别语义按 CRM 源码：company_level=公司级别（业务称毛利级别，18 个月）、city_level=城市级别、store_level=门店级别、personal_level=个人级别、 half_year_level=一年半销售级别（18 个月）、total_year_level=总销售级别（全部时间）、haiding_level=reserved15 海鼎级别（中文标签）； 真库实测（member_info_view del_flag='0'）：company 21 个（AA~AC、BA~BC、CA~CC、DA~DC、EA~EC、FA~FC、GA~GC）、 halfYear 17 个（AA~AC…FA~FB）、totalYear 24 个（AA~AC 至 HA~HC）、city 8 个（A~H）、store 8 个（A~H）、 personal 8 个（a~f，仅 348 条非空）、haiding 9 个中文标签（高级会员/VIP/至尊VIP/PLUS会员/V级企业VIP/白金VIP/VV级企业VIP/企业VIP/喔淘会员）； set_level 只有编码、无中文名称映射，原样输出；company_level 的游离值 'A' 不在 member_info_view 中，不影响本指标",
+    "caliber" : "存量会员按所选层级字段分组计数（无时间条件）；2026-11-10 补齐 company_level / city_level / store_level / personal_level / haiding_level， 现已覆盖追问候选的全部 8 个级别维度（新会员等级、CRM级别、公司级别、城市级别、门店级别、个人级别、一年半销售级别、总销售级别）+ 客户级别/维护级别/消费层级，共 11 个分组维度； 空值统一按 nullDimensionLabel='未填写' 归并，不会产生空字符串分组；不支持租户（2026-10-30 取消）；2026-11-02 口径变更：数据源从 member_info 切换为 member_info_view； 级别语义按 CRM 源码：company_level=公司级别（业务称毛利级别，18 个月）、city_level=城市级别、store_level=门店级别、personal_level=个人级别、 half_year_level=一年半销售级别（18 个月）、total_year_level=总销售级别（全部时间）、haiding_level=reserved15 CRM级别（中文标签）； 真库实测（member_info_view del_flag='0'）：company 21 个（AA~AC、BA~BC、CA~CC、DA~DC、EA~EC、FA~FC、GA~GC）、 halfYear 17 个（AA~AC…FA~FB）、totalYear 24 个（AA~AC 至 HA~HC）、city 8 个（A~H）、store 8 个（A~H）、 personal 8 个（a~f，仅 348 条非空）、haiding 9 个中文标签（高级会员/VIP/至尊VIP/PLUS会员/V级企业VIP/白金VIP/VV级企业VIP/企业VIP/喔淘会员）； set_level 只有编码、无中文名称映射，原样输出；company_level 的游离值 'A' 不在 member_info_view 中，不影响本指标",
     "defaultSortBy" : "MEMBERS",
     "derived" : [ ],
     "dimensions" : [ "CUSTOMER_LEVEL", "NEW_LEVEL", "HAIDING_LEVEL", "COMPANY_LEVEL", "CITY_LEVEL", "STORE_LEVEL", "PERSONAL_LEVEL", "IMPORTANCE", "CONSUME_HIERARCHY", "HALF_YEAR_LEVEL", "TOTAL_YEAR_LEVEL" ],
@@ -412,7 +412,7 @@
     "title" : "商品销售排行",
     "withTotalRow" : false
   }, {
-    "caliber" : "回答‘男的买的多还是女的买的多’：订单头按会员性别分组对比，主口径=实付销售额 SALES，同屏输出订单数/有消费人数/组内销售额占比； 有效订单 expense_state='10' AND del_flag='0'（与 STATION_SALES 同源全局口径，退单负行自然抵消）； 性别取自关联会员表 member_sex（1=男/2=女，其余统一归‘未知性别’组；枚举 0 含义仍待确认，归入缺失组）； 关联键 expense_mobile=member_mobile（实测 member_mobile 全表唯一→1:1 不乘行、金额不重复累计）； 订单手机号未注册为会员的仍计入对应订单（LEFT JOIN 不丢单）； 【2026-10-30 业务确认】未关联到会员的订单与‘匹配到会员但性别缺失’合并为同一桶、统一标‘未知性别’（依 §1.5 #9 小酒喔所有消费均计会员消费，不单独拆‘未匹配会员’）； 缺省窗口近一年半（全局看板默认）；不支持租户（2026-10-30 取消）；三度量口径（实付/订单数/去重买家）由开发侧代拟，业务复核前若口径有出入以业务答复为准并更新本段",
+    "caliber" : "回答‘男的买的多还是女的买的多’：订单头按会员性别分组对比，主口径=实付销售额 SALES，同屏输出订单数/有消费人数/组内销售额占比； 有效订单 expense_state='10' AND del_flag='0'（与 STATION_SALES 同源全局口径，退单负行自然抵消）； 性别取自关联会员表 member_sex（1=男/2=女，其余统一归‘未知性别’组；枚举 0 含义仍待确认，归入缺失组）； 关联键 expense_mobile=member_mobile（实测 member_mobile 全表唯一→1:1 不乘行、金额不重复累计）； 订单手机号未注册为会员的仍计入对应订单（LEFT JOIN 不丢单）； 【2026-10-30 业务确认】未关联到会员的订单与‘匹配到会员但性别缺失’合并为同一桶、统一标‘未知性别’（依 §1.5 #9 标杆酒企所有消费均计会员消费，不单独拆‘未匹配会员’）； 缺省窗口近一年半（全局看板默认）；不支持租户（2026-10-30 取消）；三度量口径（实付/订单数/去重买家）由开发侧代拟，业务复核前若口径有出入以业务答复为准并更新本段",
     "defaultSortBy" : "SALES",
     "derived" : [ ],
     "dimensions" : [ "GENDER" ],
@@ -502,7 +502,7 @@
     "title" : "新增会员数",
     "withTotalRow" : true
   }, {
-    "caliber" : "活跃＝查询窗口内有 ≥1 笔有效订单；窗口缺省近 3 个月（2026-10-29 确认，不取 CRM 业务状态字段）； 按订单表 expense_mobile 去重计数（小酒喔所有消费均计会员消费，不 JOIN member_info 验证身份）； 有效订单 expense_state='10' AND del_flag='0'；不支持租户（2026-10-30 取消，expense_tenant 61.6% 为空且非空唯一值只有一）； 真实库实测 mobile 列 391,093 行零空值",
+    "caliber" : "活跃＝查询窗口内有 ≥1 笔有效订单；窗口缺省近 3 个月（2026-10-29 确认，不取 CRM 业务状态字段）； 按订单表 expense_mobile 去重计数（标杆酒企所有消费均计会员消费，不 JOIN member_info 验证身份）； 有效订单 expense_state='10' AND del_flag='0'；不支持租户（2026-10-30 取消，expense_tenant 61.6% 为空且非空唯一值只有一）； 真实库实测 mobile 列 391,093 行零空值",
     "defaultSortBy" : "ACTIVE_MEMBERS",
     "derived" : [ ],
     "dimensions" : [ "STATION" ],
@@ -529,7 +529,7 @@
     "title" : "活跃会员数（近3个月）",
     "withTotalRow" : true
   }, {
-    "caliber" : "存量会员按所选层级字段分组计数（无时间条件）；2026-11-10 补齐 company_level / city_level / store_level / personal_level / haiding_level， 现已覆盖追问候选的全部 8 个级别维度（新会员等级、海鼎级别、公司级别、城市级别、门店级别、个人级别、一年半销售级别、总销售级别）+ 客户级别/维护级别/消费层级，共 11 个分组维度； 空值统一按 nullDimensionLabel='未填写' 归并，不会产生空字符串分组；不支持租户（2026-10-30 取消）；2026-11-02 口径变更：数据源从 member_info 切换为 member_info_view； 级别语义按 CRM 源码：company_level=公司级别（业务称毛利级别，18 个月）、city_level=城市级别、store_level=门店级别、personal_level=个人级别、 half_year_level=一年半销售级别（18 个月）、total_year_level=总销售级别（全部时间）、haiding_level=reserved15 海鼎级别（中文标签）； 真库实测（member_info_view del_flag='0'）：company 21 个（AA~AC、BA~BC、CA~CC、DA~DC、EA~EC、FA~FC、GA~GC）、 halfYear 17 个（AA~AC…FA~FB）、totalYear 24 个（AA~AC 至 HA~HC）、city 8 个（A~H）、store 8 个（A~H）、 personal 8 个（a~f，仅 348 条非空）、haiding 9 个中文标签（高级会员/VIP/至尊VIP/PLUS会员/V级企业VIP/白金VIP/VV级企业VIP/企业VIP/喔淘会员）； set_level 只有编码、无中文名称映射，原样输出；company_level 的游离值 'A' 不在 member_info_view 中，不影响本指标",
+    "caliber" : "存量会员按所选层级字段分组计数（无时间条件）；2026-11-10 补齐 company_level / city_level / store_level / personal_level / haiding_level， 现已覆盖追问候选的全部 8 个级别维度（新会员等级、CRM级别、公司级别、城市级别、门店级别、个人级别、一年半销售级别、总销售级别）+ 客户级别/维护级别/消费层级，共 11 个分组维度； 空值统一按 nullDimensionLabel='未填写' 归并，不会产生空字符串分组；不支持租户（2026-10-30 取消）；2026-11-02 口径变更：数据源从 member_info 切换为 member_info_view； 级别语义按 CRM 源码：company_level=公司级别（业务称毛利级别，18 个月）、city_level=城市级别、store_level=门店级别、personal_level=个人级别、 half_year_level=一年半销售级别（18 个月）、total_year_level=总销售级别（全部时间）、haiding_level=reserved15 CRM级别（中文标签）； 真库实测（member_info_view del_flag='0'）：company 21 个（AA~AC、BA~BC、CA~CC、DA~DC、EA~EC、FA~FC、GA~GC）、 halfYear 17 个（AA~AC…FA~FB）、totalYear 24 个（AA~AC 至 HA~HC）、city 8 个（A~H）、store 8 个（A~H）、 personal 8 个（a~f，仅 348 条非空）、haiding 9 个中文标签（高级会员/VIP/至尊VIP/PLUS会员/V级企业VIP/白金VIP/VV级企业VIP/企业VIP/喔淘会员）； set_level 只有编码、无中文名称映射，原样输出；company_level 的游离值 'A' 不在 member_info_view 中，不影响本指标",
     "defaultSortBy" : "MEMBERS",
     "derived" : [ ],
     "dimensions" : [ "CUSTOMER_LEVEL", "NEW_LEVEL", "HAIDING_LEVEL", "COMPANY_LEVEL", "CITY_LEVEL", "STORE_LEVEL", "PERSONAL_LEVEL", "IMPORTANCE", "CONSUME_HIERARCHY", "HALF_YEAR_LEVEL", "TOTAL_YEAR_LEVEL" ],
@@ -857,7 +857,7 @@
     "title" : "商品销售排行",
     "withTotalRow" : false
   }, {
-    "caliber" : "回答‘男的买的多还是女的买的多’：订单头按会员性别分组对比，主口径=实付销售额 SALES，同屏输出订单数/有消费人数/组内销售额占比； 有效订单 expense_state='10' AND del_flag='0'（与 STATION_SALES 同源全局口径，退单负行自然抵消）； 性别取自关联会员表 member_sex（1=男/2=女，其余统一归‘未知性别’组；枚举 0 含义仍待确认，归入缺失组）； 关联键 expense_mobile=member_mobile（实测 member_mobile 全表唯一→1:1 不乘行、金额不重复累计）； 订单手机号未注册为会员的仍计入对应订单（LEFT JOIN 不丢单）； 【2026-10-30 业务确认】未关联到会员的订单与‘匹配到会员但性别缺失’合并为同一桶、统一标‘未知性别’（依 §1.5 #9 小酒喔所有消费均计会员消费，不单独拆‘未匹配会员’）； 缺省窗口近一年半（全局看板默认）；不支持租户（2026-10-30 取消）；三度量口径（实付/订单数/去重买家）由开发侧代拟，业务复核前若口径有出入以业务答复为准并更新本段",
+    "caliber" : "回答‘男的买的多还是女的买的多’：订单头按会员性别分组对比，主口径=实付销售额 SALES，同屏输出订单数/有消费人数/组内销售额占比； 有效订单 expense_state='10' AND del_flag='0'（与 STATION_SALES 同源全局口径，退单负行自然抵消）； 性别取自关联会员表 member_sex（1=男/2=女，其余统一归‘未知性别’组；枚举 0 含义仍待确认，归入缺失组）； 关联键 expense_mobile=member_mobile（实测 member_mobile 全表唯一→1:1 不乘行、金额不重复累计）； 订单手机号未注册为会员的仍计入对应订单（LEFT JOIN 不丢单）； 【2026-10-30 业务确认】未关联到会员的订单与‘匹配到会员但性别缺失’合并为同一桶、统一标‘未知性别’（依 §1.5 #9 标杆酒企所有消费均计会员消费，不单独拆‘未匹配会员’）； 缺省窗口近一年半（全局看板默认）；不支持租户（2026-10-30 取消）；三度量口径（实付/订单数/去重买家）由开发侧代拟，业务复核前若口径有出入以业务答复为准并更新本段",
     "defaultSortBy" : "SALES",
     "derived" : [ ],
     "dimensions" : [ "GENDER" ],

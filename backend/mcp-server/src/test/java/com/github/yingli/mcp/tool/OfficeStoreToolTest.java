@@ -37,7 +37,7 @@ class OfficeStoreToolTest {
         JsonNode neither = read(tool.resolveOfficeStores(null, null));
         assertThat(neither.get("status").asText()).isEqualTo("invalid_input");
 
-        JsonNode both = read(tool.resolveOfficeStores("1", "小酒喔总部"));
+        JsonNode both = read(tool.resolveOfficeStores("1", "集团总部"));
         assertThat(both.get("status").asText()).isEqualTo("invalid_input");
     }
 
@@ -67,7 +67,7 @@ class OfficeStoreToolTest {
     void headquarter375StoresResolved() throws Exception {
         List<String> codes = java.util.stream.IntStream.range(0, 369)
                 .mapToObj(i -> String.format("010%05d", i)).toList();
-        when(mapper.findOfficeById("1")).thenReturn(office("1", "小酒喔总部", 1));
+        when(mapper.findOfficeById("1")).thenReturn(office("1", "集团总部", 1));
         when(mapper.countOfficeStoreCodes("1")).thenReturn(369L);
         when(mapper.listOfficeStoreCodes("1", OfficeStoreTool.MAX_STORE_CODES)).thenReturn(codes);
 
@@ -84,7 +84,7 @@ class OfficeStoreToolTest {
     @Test
     @DisplayName("超过 IN 的 500 值上限：明确拒绝，不截断、不返回部分门店编码")
     void moreThanMaxStoresRejectedWithoutPartialCodes() throws Exception {
-        when(mapper.findOfficeById("1")).thenReturn(office("1", "小酒喔总部", 1));
+        when(mapper.findOfficeById("1")).thenReturn(office("1", "集团总部", 1));
         when(mapper.countOfficeStoreCodes("1")).thenReturn(501L);
 
         JsonNode result = read(tool.resolveOfficeStores("1", null));
@@ -101,12 +101,12 @@ class OfficeStoreToolTest {
     @Test
     @DisplayName("名称多候选：返回候选，不自行选择，也不查询门店编码")
     void multipleNameCandidatesRequireClarification() throws Exception {
-        when(mapper.findOfficesByExactNames(List.of("小酒喔", "小酒喔店", "小酒喔门店")))
+        when(mapper.findOfficesByExactNames(List.of("标杆酒企", "标杆酒企店", "标杆酒企门店")))
                 .thenReturn(List.of());
-        when(mapper.findOfficeCandidatesByName("小酒喔", "小酒喔%"))
-                .thenReturn(List.of(office("1", "小酒喔总部", 1), office("2", "小酒喔分部", 1)));
+        when(mapper.findOfficeCandidatesByName("标杆酒企", "标杆酒企%"))
+                .thenReturn(List.of(office("1", "集团总部", 1), office("2", "标杆酒企分部", 1)));
 
-        JsonNode result = read(tool.resolveOfficeStores(null, "小酒喔"));
+        JsonNode result = read(tool.resolveOfficeStores(null, "标杆酒企"));
 
         assertThat(result.get("status").asText()).isEqualTo("needs_clarification");
         assertThat(result.get("matchedBy").asText()).isEqualTo("prefix");
@@ -119,12 +119,12 @@ class OfficeStoreToolTest {
     void exactHeadquarterNameResolvesWithoutClarification() throws Exception {
         List<String> codes = java.util.stream.IntStream.range(0, 369)
                 .mapToObj(i -> String.format("010%05d", i)).toList();
-        when(mapper.findOfficesByExactNames(List.of("小酒喔总部", "小酒喔总部店", "小酒喔总部门店")))
-                .thenReturn(List.of(office("1", "小酒喔总部", 2)));
+        when(mapper.findOfficesByExactNames(List.of("集团总部", "集团总部店", "集团总部门店")))
+                .thenReturn(List.of(office("1", "集团总部", 2)));
         when(mapper.countOfficeStoreCodes("1")).thenReturn(369L);
         when(mapper.listOfficeStoreCodes("1", OfficeStoreTool.MAX_STORE_CODES)).thenReturn(codes);
 
-        JsonNode result = read(tool.resolveOfficeStores(null, "小酒喔总部"));
+        JsonNode result = read(tool.resolveOfficeStores(null, "集团总部"));
 
         assertThat(result.get("status").asText()).isEqualTo("resolved");
         assertThat(result.get("officeType").asInt()).isEqualTo(2);
@@ -171,12 +171,12 @@ class OfficeStoreToolTest {
     @Test
     @DisplayName("名称首尾空白与全角空格归一化后再精确匹配")
     void nameIsNormalizedBeforeExactMatch() throws Exception {
-        when(mapper.findOfficesByExactNames(List.of("小酒喔总部", "小酒喔总部店", "小酒喔总部门店")))
-                .thenReturn(List.of(office("1", "小酒喔总部", 2)));
+        when(mapper.findOfficesByExactNames(List.of("集团总部", "集团总部店", "集团总部门店")))
+                .thenReturn(List.of(office("1", "集团总部", 2)));
         when(mapper.countOfficeStoreCodes("1")).thenReturn(1L);
         when(mapper.listOfficeStoreCodes("1", OfficeStoreTool.MAX_STORE_CODES)).thenReturn(List.of("01010601"));
 
-        JsonNode result = read(tool.resolveOfficeStores(null, "\u3000小酒喔总部 \u3000"));
+        JsonNode result = read(tool.resolveOfficeStores(null, "\u3000集团总部 \u3000"));
 
         assertThat(result.get("status").asText()).isEqualTo("resolved");
         assertThat(result.get("officeId").asText()).isEqualTo("1");

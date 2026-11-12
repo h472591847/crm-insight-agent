@@ -19,7 +19,7 @@
 - VARCHAR 数值列聚合必须走 NUM() 展开（`CAST(NULLIF(TRIM(col), '') AS DECIMAL(20,2))`），由编译器按 `ColumnTypeRegistry.isVarcharNumeric` 自动包装。
 - Ad-hoc 限额：LIMIT 默认 100、硬上限 1000；超时沿用 `MetricsLimits.MAX_EXECUTION_TIME_MS`（编译产物带 `/*+ MAX_EXECUTION_TIME(...) */` hint）。
 - 时间窗口语义与指标框架一致：左闭右开，`(col >= ? AND col < DATE_ADD(?, INTERVAL 1 DAY))`。
-- 集成测试只连 crmtest，测试类开头必须 `BaselineFixtures.assumeMatchesCurrentDb(...)`；真库基线缺失时跳过而非误报。
+- 集成测试只连 crm_dev，测试类开头必须 `BaselineFixtures.assumeMatchesCurrentDb(...)`；真库基线缺失时跳过而非误报。
 - 测试命令（Git Bash）：`export JAVA_HOME="/d/Program Files/JetBrains/IntelliJ IDEA 2026.1.5/jbr" && ./mvnw test -Dtest=<类名> -pl mcp-server`（仓库根目录执行）。
 - 日志只记 SQL/参数/行数/sqlHash，不记个人级数据；不提交任何凭证。
 - 代码风格：中文 Javadoc、`@Author crm-agent`，与 `com.github.yingli.metrics` 包现有类一致。
@@ -2456,7 +2456,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 /**
  * @ClassName AdhocReconciliationIT
  * @Description Ad-hoc 与固化指标的真库交叉对账：同口径两条链路必须给出同数字。
- * 这是"白名单解析与指标编译等价"的证明；连到非 crmtest 库自动跳过。只读，不写入。
+ * 这是"白名单解析与指标编译等价"的证明；连到非 crm_dev 库自动跳过。只读，不写入。
  * @Author crm-agent
  */
 @SpringBootTest
@@ -2605,7 +2605,7 @@ class AdhocReconciliationIT {
 - [ ] **Step 2: 运行确认通过**
 
 Run: `./mvnw test -Dtest=AdhocReconciliationIT -pl mcp-server`
-Expected: 4 个对账测试全绿（crmtest）。若 Ad-hoc 与指标因 `IFNULL nullLabel` 分组口径出现分组行差异，按指标框架对齐修复编译器（Ad-hoc 默认也归并 nullLabel），修复后重跑。
+Expected: 4 个对账测试全绿（crm_dev）。若 Ad-hoc 与指标因 `IFNULL nullLabel` 分组口径出现分组行差异，按指标框架对齐修复编译器（Ad-hoc 默认也归并 nullLabel），修复后重跑。
 
 - [ ] **Step 3: 全量回归 + Commit**
 

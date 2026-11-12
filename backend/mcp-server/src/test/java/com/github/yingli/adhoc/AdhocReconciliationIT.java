@@ -33,7 +33,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 /**
  * @ClassName AdhocReconciliationIT
  * @Description Ad-hoc 与固化指标的真库交叉对账：同一口径的两条链路（YAML 指标编译 vs 语义元数据
- * Ad-hoc 编译）在 crmtest 真库上必须给出逐值相等的数字。这是"白名单解析与指标编译等价"的证明。
+ * Ad-hoc 编译）在 crm_dev 真库上必须给出逐值相等的数字。这是"白名单解析与指标编译等价"的证明。
  * <p>
  * 对账对（等价性依据）：
  * <ul>
@@ -54,7 +54,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  *       时间窗口两侧显式传基线末端 7 天（外部库冷缓存下 27 天 join 会顶到 25s 服务端上限），不依赖缺省值。</li>
  * </ul>
  * 只读查询，不写入任何数据；输出仅汇总数字，无行级个人数据。
- * 连到非 crmtest 库时经 {@link BaselineFixtures#assumeMatchesCurrentDb} 自动跳过。
+ * 连到非 crm_dev 库时经 {@link BaselineFixtures#assumeMatchesCurrentDb} 自动跳过。
  * @Author crm-agent
  */
 @SpringBootTest
@@ -90,7 +90,7 @@ class AdhocReconciliationIT {
     @Autowired
     private ToolCallbackProvider toolCallbackProvider;
 
-    /** 基线采集自 crmtest；连到其它库时跳过，避免把环境问题误读成口径错误 */
+    /** 基线采集自 crm_dev；连到其它库时跳过，避免把环境问题误读成口径错误 */
     @BeforeEach
     void requireBaselineDatabase() {
         BaselineFixtures.assumeMatchesCurrentDb(jdbcTemplate.queryForObject("SELECT DATABASE()", String.class));

@@ -68,7 +68,7 @@
   domain: member
   status: CONFIRMED
   caliber: "活跃＝查询窗口内有 ≥1 笔有效订单；窗口缺省近 3 个月（2026-10-29 确认，不取 CRM 业务状态字段）；
-  按订单表 expense_mobile 去重计数（小酒喔所有消费均计会员消费，不 JOIN member_info 验证身份）；
+  按订单表 expense_mobile 去重计数（标杆酒企所有消费均计会员消费，不 JOIN member_info 验证身份）；
   有效订单 expense_state='10' AND del_flag='0'；不支持租户（2026-10-30 取消，expense_tenant 61.6% 为空且非空唯一值只有一）；
   真实库实测 mobile 列 391,093 行零空值"
   table: expense_calendar_info
@@ -100,10 +100,10 @@
   domain: member
   status: CONFIRMED
   caliber: "存量会员按所选层级字段分组计数（无时间条件）；2026-11-10 补齐 company_level / city_level / store_level / personal_level / haiding_level，
-  现已覆盖追问候选的全部 8 个级别维度（新会员等级、海鼎级别、公司级别、城市级别、门店级别、个人级别、一年半销售级别、总销售级别）+ 客户级别/维护级别/消费层级，共 11 个分组维度；
+  现已覆盖追问候选的全部 8 个级别维度（新会员等级、CRM级别、公司级别、城市级别、门店级别、个人级别、一年半销售级别、总销售级别）+ 客户级别/维护级别/消费层级，共 11 个分组维度；
   空值统一按 nullDimensionLabel='未填写' 归并，不会产生空字符串分组；不支持租户（2026-10-30 取消）；2026-11-02 口径变更：数据源从 member_info 切换为 member_info_view；
   级别语义按 CRM 源码：company_level=公司级别（业务称毛利级别，18 个月）、city_level=城市级别、store_level=门店级别、personal_level=个人级别、
-  half_year_level=一年半销售级别（18 个月）、total_year_level=总销售级别（全部时间）、haiding_level=reserved15 海鼎级别（中文标签）；
+  half_year_level=一年半销售级别（18 个月）、total_year_level=总销售级别（全部时间）、haiding_level=reserved15 CRM级别（中文标签）；
   真库实测（member_info_view del_flag='0'）：company 21 个（AA~AC、BA~BC、CA~CC、DA~DC、EA~EC、FA~FC、GA~GC）、
   halfYear 17 个（AA~AC…FA~FB）、totalYear 24 个（AA~AC 至 HA~HC）、city 8 个（A~H）、store 8 个（A~H）、
   personal 8 个（a~f，仅 348 条非空）、haiding 9 个中文标签（高级会员/VIP/至尊VIP/PLUS会员/V级企业VIP/白金VIP/VV级企业VIP/企业VIP/喔淘会员）；

@@ -29,7 +29,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 @SpringBootTest
 class CrmAnalyticsMapperIntegrationTest {
 
-    /** 与 crmtest 对账基线同窗口（含两端） */
+    /** 与 crm_dev 对账基线同窗口（含两端） */
     private static final String START = BaselineFixtures.windowStart();
     private static final String END = BaselineFixtures.windowEnd();
 
@@ -45,7 +45,7 @@ class CrmAnalyticsMapperIntegrationTest {
     @Autowired
     private JdbcTemplate jdbcTemplate;
 
-    /** 窗口取自 crmtest 基线；连到其它库时可能区间无数据，跳过而不是误报口径失败 */
+    /** 窗口取自 crm_dev 基线；连到其它库时可能区间无数据，跳过而不是误报口径失败 */
     @BeforeEach
     void requireBaselineDatabase() {
         BaselineFixtures.assumeMatchesCurrentDb(jdbcTemplate.queryForObject("SELECT DATABASE()", String.class));

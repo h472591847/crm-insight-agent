@@ -24,7 +24,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * @Description Phase 2 新指标的逐值对账（方案 §8.2 验收口径的延伸）：编译层结果必须与
  * 同区间、同基线的手写 oracle SQL 在真实测试库上完全一致。
  * 区间取 {@link BaselineFixtures} 里的固定历史窗口（2026-06-01 ~ 2026-06-27），
- * 不依赖“当前时间”，结果可反复复核；crmtest 基线数值作二次校验。
+ * 不依赖“当前时间”，结果可反复复核；crm_dev 基线数值作二次校验。
  * <p>
  * 2026-10-30 口径变更已落实到断言：年龄改由**阴历**生日 member_yin_birthday 计算
  * （阳历列真实库 100% 为空），因此 AGE_DIST 不再是“只出未知一组”，而是逐分桶与 oracle 比对。
@@ -45,7 +45,7 @@ class Phase2MetricsReconciliationTest {
     @Autowired
     private JdbcTemplate jdbcTemplate;
 
-    /** 基线采集自 crmtest；连到其它库时跳过，避免把环境问题误读成口径错误 */
+    /** 基线采集自 crm_dev；连到其它库时跳过，避免把环境问题误读成口径错误 */
     @BeforeEach
     void requireBaselineDatabase() {
         BaselineFixtures.assumeMatchesCurrentDb(jdbcTemplate.queryForObject("SELECT DATABASE()", String.class));
@@ -149,7 +149,7 @@ class Phase2MetricsReconciliationTest {
 
         long expectTotal = byStore.values().stream().mapToLong(Long::longValue).sum();
         assertThat(((Number) res.totalValue("NEW_MEMBERS")).longValue()).isEqualTo(expectTotal);
-        // crmtest 基线：窗口内新增 23,487 人 / 260 个注册门店（旧“样本库 5000 人全部创建于此区间”已作废）
+        // crm_dev 基线：窗口内新增 23,487 人 / 260 个注册门店（旧“样本库 5000 人全部创建于此区间”已作废）
         assertThat(expectTotal).as("区间内新增会员总数=基线")
                 .isEqualTo(BaselineFixtures.count("memberNew", "totalNewMembers"));
         assertThat(res.rowCount()).as("注册门店分组数=基线")
@@ -184,7 +184,7 @@ class Phase2MetricsReconciliationTest {
         assertThat(total).as("存量分布总数=全部有效会员")
                 .isEqualTo(BaselineFixtures.count("memberOverview", "totalMembers"));
         assertThat(byLevel).containsKey("未填写");
-        // crmtest 基线：new_member_level_key 填充 414,905 / 去重 7 值 / 未填写 213,622
+        // crm_dev 基线：new_member_level_key 填充 414,905 / 去重 7 值 / 未填写 213,622
         long unfilled = byLevel.getOrDefault("未填写", 0L);
         assertThat(total - unfilled).as("层级已填写人数=基线")
                 .isEqualTo(BaselineFixtures.count("memberLevelDist", "filledCount"));

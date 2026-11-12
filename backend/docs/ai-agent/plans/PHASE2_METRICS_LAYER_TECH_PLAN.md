@@ -7,7 +7,7 @@
 > ⚠️ **实现漂移说明（2026-10-30 补记，以代码为准）**：本文件是 2026-10-28 的方案评审稿，保留了当时的措辞与示例作为历史记录。与现行实现的差异：
 > 1. **租户维度已全面取消**：下文示例里所有 `code: TENANT` 的 `dimensions`/`optionalFilters` 与 `AND expense_tenant = ?` 均**已作废**，现行配置只保留门店（`STATION`）；传入 `TENANT` 会被 `QueryPlanValidator` 显式拒绝。
 > 2. **时间上限已变**：全局 `MAX_RANGE_DAYS` 366 → **550 天**，缺省区间改为近一年半（`defaultWindowMonths`）；2026-10-30 新增**指标级** `maxRangeDays`（`PRODUCT_RANKING` = 92 天）。
-> 3. **§8.2 示例基线已失效**：那组 5000 行样本数字（228 组 / 2,445,299.92 / 117,906.50 / 890,272.00）已作废；现行做法是数值外置到 `src/test/resources/baseline/crmtest-baseline.yaml`（**随仓库提交**，2026-10-30 确认），由测试类 `BaselineFixtures` 读取，区间固定为 **2026-06-01 ~ 06-27**，并用 `Assumptions` 做“连错库就跳过”守卫。
+> 3. **§8.2 示例基线已失效**：那组 5000 行样本数字（228 组 / 2,445,299.92 / 117,906.50 / 890,272.00）已作废；现行做法是数值外置到 `src/test/resources/baseline/crm_dev-baseline.yaml`（**随仓库提交**，2026-10-30 确认），由测试类 `BaselineFixtures` 读取，区间固定为 **2026-06-01 ~ 06-27**，并用 `Assumptions` 做“连错库就跳过”守卫。
 
 ## 一、核心决策：把"谁写 SQL"和"什么时候写 SQL"拆开
 
@@ -414,14 +414,14 @@ class StationSalesReconciliationTest {
         assertThat(r.rowCount()).isEqualTo(228);              // 含"未知门店"行
         assertThat(r.totalRow().salesAmount())
                 .isEqualByComparingTo("2445299.92");
-        assertThat(r.rows().get(0).stationName()).isEqualTo("哈市鸿翔路旗舰店");
+        assertThat(r.rows().get(0).stationName()).isEqualTo("标杆旗舰店");
         assertThat(r.rows().get(0).salesAmount()).isEqualByComparingTo("117906.50");
     }
 }
 ```
 
 `MEMBER_OVERVIEW` 基线：total=5000 / male=4880 / female=120 / unknown=0、有消费会员 3993、累计消费 2,660,605.52。
-`PRODUCT_RANKING` 基线：Top1「53度飞天茅台」销售额 890,272.00 / 销量 532。
+`PRODUCT_RANKING` 基线：Top1「头部白酒A」销售额 890,272.00 / 销量 532。
 
 > ⚠️ 测试库 `expense_calendar_info` 数据分布有限（曾出现"本月"默认区间返回空），**所有测试必须显式传历史区间**。
 
@@ -621,7 +621,7 @@ src/test/java/com/itzixi/metrics/MetricsFixtures.java                     // 不
 src/test/java/com/itzixi/metrics/MetricsAsCodeMigrationReconciliationTest.java  // vs 手写SQL 逐值
 src/test/java/com/itzixi/metrics/Phase2MetricsReconciliationTest.java     // 真库对账
 src/test/java/com/itzixi/metrics/QueryPlanDefaultWindowTest.java          // 缺省窗口/指标级上限
-src/test/java/com/itzixi/metrics/BaselineFixtures.java                    // 基线外置（crmtest-baseline.yaml）
+src/test/java/com/itzixi/metrics/BaselineFixtures.java                    // 基线外置（crm_dev-baseline.yaml）
 src/test/java/com/itzixi/mcp/tool/MetricToolInjectionTest.java            // 越权/注入/非法枚举
 ```
 

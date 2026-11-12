@@ -69,7 +69,7 @@ public record MetricDefinition(
         int defaultWindowMonths,
         /**
          * 指标级时间跨度上限（天）：0 表示沿用全局上限 QueryLimits.MAX_RANGE_DAYS。
-         * 适用于“窗口一大就超时”的明细表指标：真实库 crmtest 2026-10-30 实测，
+         * 适用于“窗口一大就超时”的明细表指标：真实库 crm_dev 2026-10-30 实测，
          * 商品排行单月 1.2s 可稳定返回，18 个月 75.8s（FORCE INDEX 后仍 14.2s），
          * 而执行层上限为 10s —— 与其让模型稳定收到超时错误，不如在服务端按指标上限拒绝。
          * 语义：显式传入超上限区间→拒绝；缺省窗口超上限→收敛到上限（与 topN 同一策略）。

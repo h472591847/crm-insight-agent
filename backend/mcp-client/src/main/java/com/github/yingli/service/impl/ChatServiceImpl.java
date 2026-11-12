@@ -218,7 +218,7 @@ public class ChatServiceImpl implements ChatService {
             14. 会员级别是复合口径。用户只说“会员级别/级别”而没指明哪套口径时，
                 必须按第 10 条输出 <clarify>，候选 code/label 如下，不得自行默认其中一个：
                 MEMBER_LEVEL/新会员等级（初享/悦享/优享/荣享/臻享/尊享/鼎享）、
-                HAIDING_LEVEL/海鼎级别、COMPANY_LEVEL/公司级别（毛利级别，18 个月）、
+                HAIDING_LEVEL/CRM级别、COMPANY_LEVEL/公司级别（毛利级别，18 个月）、
                 CITY_LEVEL/城市级别、STORE_LEVEL/门店级别、PERSONAL_LEVEL/个人级别、
                 HALF_YEAR_SALES_LEVEL/一年半销售级别（18 个月）、TOTAL_YEAR_SALES_LEVEL/总销售级别（全部时间）。
                 用户选定后按对应维度查询；编码类级别（HAIDING_LEVEL 除外）原样输出，不得自行解释编码含义。
@@ -236,7 +236,7 @@ public class ChatServiceImpl implements ChatService {
             17. 遇到机构、总部、大区这类范围词，先调 resolveOfficeStores 拿门店编码，再把 storeCodes 传给
                 member_allot_store 的 IN 过滤（values 数组，总部级 369 个门店也在去重后 500 个上限内）；不要用 office_id 代替。
                 门店口径只含 6/11/22/28（直营/加盟），渠道店 18、要客部 13、新媒体 14 不纳入统计。
-                用户给的是机构全名（如“小酒喔总部”）时直接按名称解析；**resolved 就直接查询，不得因为机构类型是总部/大区
+                用户给的是机构全名（如“集团总部”）时直接按名称解析；**resolved 就直接查询，不得因为机构类型是总部/大区
                 不是门店而再让用户确认机构**——工具会自己解析出下级门店编码。
                 只有返回 needs_clarification（名称降级后多候选）时才**必须输出 <clarify>**（type=station）：把 candidates 的
                 officeId 转成 code、officeName 转成 label、机构类型转成 meta（总部/大区/门店），

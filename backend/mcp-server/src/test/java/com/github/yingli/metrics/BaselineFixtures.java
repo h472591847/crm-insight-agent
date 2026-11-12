@@ -17,7 +17,7 @@ import java.util.Map;
 
 /**
  * @ClassName BaselineFixtures
- * @Description 真实测试库 crmtest 的对账基线读取器（classpath:baseline/crmtest-baseline.yaml）。
+ * @Description 真实测试库 crm_dev 的对账基线读取器（classpath:baseline/crm_dev-baseline.yaml）。
  * <p>
  * 为什么要把基线数值外置：这些数字属于<b>数据</b>而不是<b>口径</b>。库里补数据、清理数据或
  * 换一批样本后，它们必然变化；写死在断言里会让测试变成"提醒我该重新体检了"的信号灯，
@@ -35,7 +35,7 @@ import java.util.Map;
  */
 public final class BaselineFixtures {
 
-    private static final String PATH = "baseline/crmtest-baseline.yaml";
+    private static final String PATH = "baseline/crm_dev-baseline.yaml";
 
     private static final Map<String, Object> ROOT = load();
 

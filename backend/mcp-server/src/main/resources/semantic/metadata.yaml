@@ -21,7 +21,7 @@ entities:
       # 会员级别/层级（2026-11-07 真库核实：值为自描述中文，非编码）
       - { name: MEMBER_LEVEL,   column: new_member_level_value, nullLabel: "未填写" }  # 新会员等级名称：初享/悦享/优享/荣享/臻享/尊享/鼎享
       # 多种"会员级别"口径（业务 2026-11-07 确认，除 HAIDING_LEVEL 外均为编码，无中文标签映射）
-      - { name: HAIDING_LEVEL,       column: reserved15,       nullLabel: "未填写" }  # 海鼎系统定义的客户级别（列注释标注废弃，库内仍有中文标签）
+      - { name: HAIDING_LEVEL,       column: reserved15,       nullLabel: "未填写" }  # CRM系统定义的客户级别（列注释标注废弃，库内仍有中文标签）
       - { name: COMPANY_LEVEL,       column: company_level,    nullLabel: "未填写" }  # 公司级别（业务称毛利级别，18 个月）；CRM set_level 按 level_code=companyLevelA~G 分组实测 21 个：AA/AB/AC、BA/BB/BC、CA/CB/CC、DA/DB/DC、EA/EB/EC、FA/FB/FC、GA/GB/GC；无中文映射，原样输出编码
       - { name: CITY_LEVEL,          column: city_level,       nullLabel: "未填写" }  # 城市级别，取值 A~H（与 set_level 的 cityLevel 分组一致）
       - { name: STORE_LEVEL,         column: store_level,      nullLabel: "未填写" }  # 门店级别，取值 A~H（与 set_level 的 storeLevel 分组一致）
@@ -93,7 +93,7 @@ entities:
                       member_name, reserved2, member_expense_totalsum_year ]
     filterGuidance:
       - "查手机号：用户给出完整手机号时可直接用 member_mobile（op=，index_mobile）等值过滤；完整号码即单个会员，无需先调 guessMemberByMobile；手机号列仅支持精确匹配，禁止 LIKE/前缀/包含模糊匹配"
-      - "查会员级别/层级：MEMBER_LEVEL（新会员等级：初享/悦享/优享/荣享/臻享/尊享/鼎享）、HAIDING_LEVEL（海鼎级别）、COMPANY_LEVEL（公司级别/毛利级别）、CITY_LEVEL（城市级别）、STORE_LEVEL（门店级别）、PERSONAL_LEVEL（个人级别）、HALF_YEAR_SALES_LEVEL（一年半销售级别）、TOTAL_YEAR_SALES_LEVEL（全年总销售级别）、CUSTOMER_VALUE（顾客价值）。用户只说“会员级别/级别”未指明哪套口径时，必须列出以上候选让用户选，不得自行默认；除 HAIDING_LEVEL 为中文字段外，其余级别取值为编码，原样输出；COMPANY_LEVEL（公司级别/毛利级别，18 个月）实测 21 个编码（AA~AC、BA~BC、CA~CC、DA~DC、EA~EC、FA~FC、GA~GC），HALF_YEAR_SALES_LEVEL（一年半销售级别，18 个月）实测 17 个（AA~AC、BA~BC、CA~CC、DA~DC、EA~EC、FA~FB），TOTAL_YEAR_SALES_LEVEL（总销售级别，全部时间）实测 24 个（AA~AC 至 HA~HC），三组均由 set_level 按 level_code 分组、无中文名称，不得编造编码对应的等级含义；CITY_LEVEL/STORE_LEVEL（A~H）与 set_level 的 cityLevel/storeLevel 一致，PERSONAL_LEVEL（a~f）不在 set_level、属真库观察值，NULL 归“未填写”；company_level 另有 1 条游离值 'A'（对应 set_level 中 level_code=companyLevel、level='A' 的父级行，CRM 下拉不展示），属数据异常/父级码，原样输出、不映射等级含义（该会员不在 member_info_view 中）。customer_level、consume_hierarchy 真库 100% 为空；member_importance 取值混有 1-9 编码与少量中文标签，编码含义待确认——以上均不开放"
+      - "查会员级别/层级：MEMBER_LEVEL（新会员等级：初享/悦享/优享/荣享/臻享/尊享/鼎享）、HAIDING_LEVEL（CRM级别）、COMPANY_LEVEL（公司级别/毛利级别）、CITY_LEVEL（城市级别）、STORE_LEVEL（门店级别）、PERSONAL_LEVEL（个人级别）、HALF_YEAR_SALES_LEVEL（一年半销售级别）、TOTAL_YEAR_SALES_LEVEL（全年总销售级别）、CUSTOMER_VALUE（顾客价值）。用户只说“会员级别/级别”未指明哪套口径时，必须列出以上候选让用户选，不得自行默认；除 HAIDING_LEVEL 为中文字段外，其余级别取值为编码，原样输出；COMPANY_LEVEL（公司级别/毛利级别，18 个月）实测 21 个编码（AA~AC、BA~BC、CA~CC、DA~DC、EA~EC、FA~FC、GA~GC），HALF_YEAR_SALES_LEVEL（一年半销售级别，18 个月）实测 17 个（AA~AC、BA~BC、CA~CC、DA~DC、EA~EC、FA~FB），TOTAL_YEAR_SALES_LEVEL（总销售级别，全部时间）实测 24 个（AA~AC 至 HA~HC），三组均由 set_level 按 level_code 分组、无中文名称，不得编造编码对应的等级含义；CITY_LEVEL/STORE_LEVEL（A~H）与 set_level 的 cityLevel/storeLevel 一致，PERSONAL_LEVEL（a~f）不在 set_level、属真库观察值，NULL 归“未填写”；company_level 另有 1 条游离值 'A'（对应 set_level 中 level_code=companyLevel、level='A' 的父级行，CRM 下拉不展示），属数据异常/父级码，原样输出、不映射等级含义（该会员不在 member_info_view 中）。customer_level、consume_hierarchy 真库 100% 为空；member_importance 取值混有 1-9 编码与少量中文标签，编码含义待确认——以上均不开放"
       - "查是否要客：track（CRM 页面筛选 0=否 / 1=是；取消要客流程会出现 track=2，NULL 也可能存在），优先用 IS_VIP 条件模板（track=1）；输出用 VIP_FLAG 维度（要客/非要客/未知），不要直接输出 1/0，也不要把 2 或 NULL 说成“否”"
       - "查分配状态：ALLOT_STORE_FLAG（member_is_allot_store 1=已分配门店 / 2=未分配）、STAFF_ALLOT_FLAG（isAllotStaff 1=已分配员工 / 2=未分配 / 空=不限）；member_allot_store 存的是 sys_office.HD_ID（8 位），与 member_info.office_id 不是同一字段，CRM 页面按分配门店做机构数据权限隔离，该列为空的会员在设置机构范围时会被完全排除；查会员池：POND_TYPE（importan_pond_user_type 0 正常/1 池中）"
       - "查归属员工/分配员工：维度 ALLOT_STAFF_NAME（member_allot_staffName，有 index_allot_staffName），也可按 member_allot_staffName 等值过滤；该列可为空，空值按 nullLabel 输出“未分配员工”"
@@ -129,7 +129,7 @@ entities:
       渠道店（type=18）、要客部（13）、新媒体（14）不纳入门店统计，这类仍返回 no_match"
       - "查机构/总部/大区范围：必须先调 resolveOfficeStores（officeId 或 officeName 二选一），
       status=resolved 时把返回的 storeCodes 原样传给 member_allot_store 的 IN 过滤，不要用 office_id 代替；
-      用户给的是机构全名（如“小酒喔总部”）时按名称直接解析，精确命中即 resolved——总部/大区等非门店机构也会解析出下级门店，
+      用户给的是机构全名（如“集团总部”）时按名称直接解析，精确命中即 resolved——总部/大区等非门店机构也会解析出下级门店，
       不得再让用户确认机构类型；只有返回 needs_clarification（降级后多候选）才让用户从 candidates 中选，再用 officeId 重查；
       status=no_stores 表示机构下没有可统计门店，或该机构本身是渠道/加盟、要客部、新媒体类不纳入统计，如实说明即可；
       门店类型口径为 6/11/22/28（直营/加盟），排除渠道店 18、要客部 13、新媒体 14；

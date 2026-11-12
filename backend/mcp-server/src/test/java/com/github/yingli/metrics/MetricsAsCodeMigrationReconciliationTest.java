@@ -34,8 +34,8 @@ import static org.assertj.core.api.Assertions.assertThat;
  *   <li><b>主对账</b>：同次执行里逐门店 / 逐 SKU / 逐字段比对手写 SQL 与编译 SQL，证明 SQL 生成正确；</li>
  *   <li><b>二次校验</b>：组数、合计、Top1 命中 {@link BaselineFixtures} 中的真实库基线，证明口径未整体漂移。</li>
  * </ol>
- * 基线数值不再写在本类里：它们是 2026-10-30 对 crmtest 只读探测的结果（窗口 2026-06-01~2026-06-27，
- * 会员 628,527 / 门店 314 组），存于 {@code src/test/resources/baseline/crmtest-baseline.yaml}，
+ * 基线数值不再写在本类里：它们是 2026-10-30 对 crm_dev 只读探测的结果（窗口 2026-06-01~2026-06-27，
+ * 会员 628,527 / 门店 314 组），存于 {@code src/test/resources/baseline/crm_dev-baseline.yaml}，
  * 重新体检只需重跑 {@code scripts/probe/step0_baseline_full.py}。
  * 窗口取固定历史区间而非“当前时间”，结果可反复复核。
  * @Author crm-agent
@@ -58,7 +58,7 @@ class MetricsAsCodeMigrationReconciliationTest {
     @Autowired
     private JdbcTemplate jdbcTemplate;
 
-    /** 基线是从 crmtest 采集的；连到其它库时跳过，避免把环境问题误读成口径错误 */
+    /** 基线是从 crm_dev 采集的；连到其它库时跳过，避免把环境问题误读成口径错误 */
     @BeforeEach
     void requireBaselineDatabase() {
         BaselineFixtures.assumeMatchesCurrentDb(jdbcTemplate.queryForObject("SELECT DATABASE()", String.class));
@@ -73,7 +73,7 @@ class MetricsAsCodeMigrationReconciliationTest {
     }
 
     @Test
-    @DisplayName("STATION_SALES：编译结果与手写 XML 逐门店逐值一致，合计与 Top1 命中 crmtest 基线")
+    @DisplayName("STATION_SALES：编译结果与手写 XML 逐门店逐值一致，合计与 Top1 命中 crm_dev 基线")
     void stationSales_matchesHandWrittenMapper() {
         List<StationPerformanceResult.StationStat> baseline =
                 expenseStatMapper.stationPerformance(START, END, null, null);
@@ -83,7 +83,7 @@ class MetricsAsCodeMigrationReconciliationTest {
         MetricResult res = metricQueryService.query("order", q);
         assertThat(res.getErrorCode()).isNull();
 
-        // 行数一致（含"未知门店"分组），并命中 crmtest 基线组数
+        // 行数一致（含"未知门店"分组），并命中 crm_dev 基线组数
         assertThat(res.rowCount()).isEqualTo(baseline.size());
         assertThat(res.rowCount()).as("门店分组数=基线")
                 .isEqualTo((int) BaselineFixtures.count("stationPerformance", "groupCount"));
@@ -122,7 +122,7 @@ class MetricsAsCodeMigrationReconciliationTest {
             prevSales = sales;
         }
 
-        // 合计行：全量合计（非 TopN 累加），并命中 crmtest 基线
+        // 合计行：全量合计（非 TopN 累加），并命中 crm_dev 基线
         BigDecimal expectTotalSales = baseline.stream().map(StationPerformanceResult.StationStat::getSalesAmount)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
         long expectTotalOrders = baseline.stream().mapToLong(StationPerformanceResult.StationStat::getOrderCount).sum();
@@ -145,7 +145,7 @@ class MetricsAsCodeMigrationReconciliationTest {
     }
 
     @Test
-    @DisplayName("PRODUCT_RANKING：Top10 与手写 XML 逐 SKU 逐值一致，Top1 命中 crmtest 基线（异常 SKU 同样入榜）")
+    @DisplayName("PRODUCT_RANKING：Top10 与手写 XML 逐 SKU 逐值一致，Top1 命中 crm_dev 基线（异常 SKU 同样入榜）")
     void productRanking_matchesHandWrittenMapper() {
         List<ProductRankingResult.ProductStat> baseline =
                 expenseStatMapper.productRanking(START, END, null, "sales", 10);
@@ -164,7 +164,7 @@ class MetricsAsCodeMigrationReconciliationTest {
             assertThat((BigDecimal) res.value(i, "QTY")).isEqualByComparingTo(exp.getQuantity());
         }
 
-        // 基线 Top1：商品名/SKU/销售额/销量均取 crmtest 基线（不在测试代码里写死数字）
+        // 基线 Top1：商品名/SKU/销售额/销量均取 crm_dev 基线（不在测试代码里写死数字）
         assertThat(String.valueOf(res.value(0, "product_name")))
                 .isEqualTo(BaselineFixtures.productTopText(1, "productName"));
         assertThat(String.valueOf(res.value(0, "SKU")))
@@ -176,7 +176,7 @@ class MetricsAsCodeMigrationReconciliationTest {
     }
 
     @Test
-    @DisplayName("MEMBER_OVERVIEW：全局人数聚合与手写 XML 逐字段一致，命中 crmtest 基线")
+    @DisplayName("MEMBER_OVERVIEW：全局人数聚合与手写 XML 逐字段一致，命中 crm_dev 基线")
     void memberOverview_matchesHandWrittenMapper() {
         MemberOverviewResult baseline = memberStatMapper.memberOverview(null, null);
 
@@ -192,7 +192,7 @@ class MetricsAsCodeMigrationReconciliationTest {
         assertThat((BigDecimal) res.value(0, "UNKNOWN_COUNT"))
                 .isEqualByComparingTo(String.valueOf(baseline.getUnknownCount()));
 
-        // crmtest 基线二次校验（数值来自 baseline yaml，口径自洽：男+女+未知=总数）
+        // crm_dev 基线二次校验（数值来自 baseline yaml，口径自洽：男+女+未知=总数）
         assertThat(res.value(0, "TOTAL_MEMBERS"))
                 .isEqualTo(BaselineFixtures.count("memberOverview", "totalMembers"));
         assertThat((BigDecimal) res.value(0, "MALE_COUNT")).isEqualByComparingTo(
@@ -288,7 +288,7 @@ class MetricsAsCodeMigrationReconciliationTest {
         assertThat(sumBuyers).as("三组去重人数求和=全局活跃会员（member_mobile 唯一，跨组不重复）")
                 .isEqualTo(BaselineFixtures.count("activeMember", "distinctMembersTotal"));
 
-        // 二次校验：逐性别命中 crmtest 基线标准答案
+        // 二次校验：逐性别命中 crm_dev 基线标准答案
         assertThat((BigDecimal) res.value(labelRowIndex(res, "男"), "SALES"))
                 .as("男销售额命中基线")
                 .isEqualByComparingTo(BaselineFixtures.decimal("genderComparison", "male", "salesAmount"));

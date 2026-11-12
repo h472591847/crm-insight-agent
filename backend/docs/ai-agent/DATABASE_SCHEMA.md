@@ -407,9 +407,9 @@ CREATE TABLE `member_info` (
                                `reserved12` varchar(300) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL COMMENT '最后修改人名称',
                                `reserved13` varchar(300) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL COMMENT '最近消费门店id',
                                `reserved14` varchar(300) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL COMMENT '预留14',
-                               `reserved15` varchar(300) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL COMMENT '(该字段废弃，直接在海鼎接口中查询)',
+                               `reserved15` varchar(300) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL COMMENT '(该字段废弃，直接在CRM接口中查询)',
                                `beforeJson` varchar(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL COMMENT '之前修改json',
-                               `hd_member_id` varchar(200) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL COMMENT '海鼎会员id',
+                               `hd_member_id` varchar(200) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL COMMENT 'CRM会员id',
                                `age` bigint DEFAULT NULL COMMENT '年龄',
                                `integral` decimal(16,0) DEFAULT NULL COMMENT '积分',
                                `stored_amt` decimal(16,2) DEFAULT NULL COMMENT '储值金额',
@@ -520,7 +520,7 @@ CREATE TABLE `member_info` (
 
 ```sql
 
-CREATE DEFINER=`crmtest`@`%` TRIGGER `ff_update_member_info_view` AFTER UPDATE ON `member_info` FOR EACH ROW BEGIN
+CREATE DEFINER=`crm_dev`@`%` TRIGGER `ff_update_member_info_view` AFTER UPDATE ON `member_info` FOR EACH ROW BEGIN
 UPDATE member_info_view SET
                             member_name = NEW.member_name,
                             member_sex = NEW.member_sex,

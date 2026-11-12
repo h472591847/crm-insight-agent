@@ -42,7 +42,7 @@ public final class ToolPromptSnippets {
      * 「会员级别」是复合口径（多列候选），用户未指明确切口径时必须让用户选择，不得默认。
      */
     public static final String AMBIGUOUS_MEMBER_LEVEL =
-            "会员级别有多个口径：MEMBER_LEVEL（新会员等级 初享~鼎享）、HAIDING_LEVEL（海鼎级别）、"
+            "会员级别有多个口径：MEMBER_LEVEL（新会员等级 初享~鼎享）、HAIDING_LEVEL（CRM级别）、"
           + "COMPANY_LEVEL（公司级别/毛利级别，18 个月）、CITY_LEVEL（城市级别）、STORE_LEVEL（门店级别）、"
           + "PERSONAL_LEVEL（个人级别）、HALF_YEAR_SALES_LEVEL（一年半销售级别，18 个月）、"
           + "TOTAL_YEAR_SALES_LEVEL（总销售级别，全部时间）。三个销售/毛利级别的编码已按 CRM set_level 核实："

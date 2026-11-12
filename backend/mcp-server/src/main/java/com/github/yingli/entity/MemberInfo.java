@@ -430,7 +430,7 @@ public class MemberInfo {
     private String reserved14;
 
     /**
-     * (该字段废弃，直接在海鼎接口中查询)
+     * (该字段废弃，直接在CRM接口中查询)
      */
     @TableField(value = "reserved15")
     private String reserved15;
@@ -442,7 +442,7 @@ public class MemberInfo {
     private String beforeJson;
 
     /**
-     * 海鼎会员id
+     * CRM会员id
      */
     @TableField(value = "hd_member_id")
     private String hd_member_id;

@@ -388,7 +388,7 @@ class AdhocSqlCompilerTest {
     }
 
     @Test
-    @DisplayName("海鼎级别维度与要客标签维度：列/表达式按元数据编译，GROUP BY 同表达式")
+    @DisplayName("CRM级别维度与要客标签维度：列/表达式按元数据编译，GROUP BY 同表达式")
     void haidingLevelAndVipFlagDimension() {
         GeneratedSql gen = compiler.compile(req(
                 List.of("member"), List.of("HAIDING_LEVEL", "VIP_FLAG"),

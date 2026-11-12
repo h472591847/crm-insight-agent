@@ -88,8 +88,8 @@
 ## 2026-10-28（补充）：数据重拉为 6/20-6/27 样本 + Phase 1 聚合 SQL 真库集成验证通过
 
 ### 一、数据集变更
-- 本地测试库(crmtest)由 10 万全量重拉为“6/20-6/27 活跃用户”分层样本：`expense_calendar_info` 5857 行(2025-10-03→2026-06-27)、`expense_calendar_details` 8892 行(2019-09-12→2026-06-27)、`member_info` 5000 行。
-- 三表所在 schema = `springai-items-mcp`，与 mcp-server 数据源同库，工具无需改数据源即可查表。
+- 本地测试库(crm_dev)由 10 万全量重拉为“6/20-6/27 活跃用户”分层样本：`expense_calendar_info` 5857 行(2025-10-03→2026-06-27)、`expense_calendar_details` 8892 行(2019-09-12→2026-06-27)、`member_info` 5000 行。
+- 三表所在 schema = `crm_dev`，与 mcp-server 数据源同库，工具无需改数据源即可查表。
 - 状态分布复核：info 全部 `state='10' AND del_flag='0'`，退单负数 137 行。
 
 ### 二、代码核对结论（无需改动）
@@ -98,7 +98,7 @@
 ### 三、已实际执行的验证
 - 新增 `CrmAnalyticsMapperIntegrationTest`（`@SpringBootTest`，注入两个 Mapper，直连真库执行将要上线的聚合 SQL，窗口显式 2026-06-20~27）。
 - 运行 `mvn -o -pl mcp-server test -Dtest=CrmAnalyticsMapperIntegrationTest` → **BUILD SUCCESS，Tests run: 3, Failures: 0, Errors: 0**。推翻上一节“SQL 尚未对真实库执行”的状态。
-- 实测基线：会员总览 total=5000 / male=4880 / female=120 / unknown=0（三分区自洽）、有消费会员 3993、累计消费 2,660,605.52；门店业绩 228 组（Top1 哈市鸿翔路旗舰店 117,906.50 / 90 单，店名初记“哈市鸿路旗舰店”为笔误，2026-10-29 对账实测校正，数值不变）；商品排行 Top10（Top1 53度飞天茅台 890,272.00 / 532）。
+- 实测基线：会员总览 total=5000 / male=4880 / female=120 / unknown=0（三分区自洽）、有消费会员 3993、累计消费 2,660,605.52；门店业绩 228 组（Top1 标杆旗舰店 117,906.50 / 90 单，店名初记“哈市鸿路旗舰店”为笔误，2026-10-29 对账实测校正，数值不变）；商品排行 Top10（Top1 头部白酒A 890,272.00 / 532）。
 
 ### 四、暴露的数据质量事实（待产品确认，未擅自处理）
 - 门店业绩存在 1 组 `expense_stationCode` 为空的订单 → 是否从“门店业绩”中排除或归为“未知门店”，属业务口径，待确认。
@@ -186,7 +186,7 @@
 ### 测试与验证结果（均已实际执行）
 - 命令：IDEA 内置 Maven `mvn -o -pl mcp-server test` → **BUILD SUCCESS，Tests run: 46, Failures: 0, Errors: 0, Skipped: 0**。
 - 分项：`SqlCompilerTest` 8（golden SQL 快照/NUM scale/compileTotals/注入参数化/非法维度排序拒绝）、`MetricDefinitionValidatorTest` 10（真实 3 配置零错误 + 9 类安全规则）、`CrmAnalyticsToolTest` 12（不连库）、`MetricToolInjectionTest` 10（跨域/UNCONFIRMED/注入/topN 夹取/explain 干跑/QUERY_FAILED）、`MetricsAsCodeMigrationReconciliationTest` 3（连真库）、既有 `CrmAnalyticsMapperIntegrationTest` 3（连真库，回归通过）。
-- **逐值对账结论（窗口 2026-06-20~27）**：编译层与手写 XML 在同库同参数下 228 组门店逐行逐值一致（销售额/订单数/客单价/未知门店归并/降序）、全量合计 2,445,299.92、Top1 哈市鸿翔路旗舰店 117,906.50；商品 Top10 按位逐值一致（Top1 飞天茅台 890,272.00/532）；会员总览逐字段一致（5000/4880/120/0/3993/2,660,605.52）。
+- **逐值对账结论（窗口 2026-06-20~27）**：编译层与手写 XML 在同库同参数下 228 组门店逐行逐值一致（销售额/订单数/客单价/未知门店归并/降序）、全量合计 2,445,299.92、Top1 标杆旗舰店 117,906.50；商品 Top10 按位逐值一致（Top1 头部白酒A 890,272.00/532）；会员总览逐字段一致（5000/4880/120/0/3993/2,660,605.52）。
 - 运行中暴露并修复 3 处测试断言写法问题（`ORDER BY` 含 "OR" 的误报、zeroFill 的 COALESCE 包装未计入期望、Top1 店名按实测校正）；**生产代码未因测试失败做任何修改**。
 
 ### 业务口径变化
@@ -210,7 +210,7 @@
 - 做：新增会员（归属＝注册店 `member_store`）、活跃会员（近 90 天有消费）、会员层级分布（六字段全统）、年龄分布（由生日算，不用 `age` 列）、单客年均消费（近一年半）、历史消费金额去负数。
 - 不做：流失/沉睡/名单类、复购族、地域分布（需 TMS）。
 - 全局：看板默认时间范围改为**近一年半**。
-- 待对齐：“所有小酒喔消费都算会员”的映射对象（疑指会员/散客判定）；年龄段划分默认方案；门店毛利、会员销售额占比仍未明确。
+- 待对齐：“所有标杆酒企消费都算会员”的映射对象（疑指会员/散客判定）；年龄段划分默认方案；门店毛利、会员销售额占比仍未明确。
 
 ### 修改文件
 - `METRICS_MAPPING.md`：新增 §1.5 答复表；第一节基线加默认时间行；A/B/C/D/E 组逐项状态翻转（✅/⛔）；第四节逐条标注答案；第五节分阶段修订。
@@ -230,7 +230,7 @@
 ## 2026-10-29（续三）：Phase 2 框架改造 + 5 个新指标接入，真库逐值对账全绿
 
 ### 本次目标
-落地续二节识别的三处代码侧影响与 5 个新指标（口径见 METRICS_MAPPING.md §1.5，含澄清结论：流失不做活跃做；小酒喔口径＝活跃/年均消费按 `expense_mobile` 直接统计；年龄默认分桶；默认区间全部改含 Phase 1 旧工具）。
+落地续二节识别的三处代码侧影响与 5 个新指标（口径见 METRICS_MAPPING.md §1.5，含澄清结论：流失不做活跃做；标杆酒企口径＝活跃/年均消费按 `expense_mobile` 直接统计；年龄默认分桶；默认区间全部改含 Phase 1 旧工具）。
 
 ### 已完成事项
 1. **框架改造**：
@@ -270,21 +270,21 @@
 ### 下一步
 - 模型端自然语言→新指标编码的路由验证（listMetrics 目录已含 8 指标）；真实/脱敏库上 AGE_DIST、层级分布复验。
 
-## 2026-10-30：数据源切换为真实测试库 crmtest，Step 0 全量重探测（旧基线全部失效）
+## 2026-10-30：数据源切换为真实测试库 crm_dev，Step 0 全量重探测（旧基线全部失效）
 
 ### 本次目标
-`application-dev.yml` 的数据源已从 5000 行样本库切到真实 CRM 测试库 `crmtest`。本次重做 Step 0 只读体检，量化既有基线与口径断言的失效范围，并把探测事实补记入文档。**本轮未改动任何 Java 代码、指标 YAML 与测试断言。**
+`application-dev.yml` 的数据源已从 5000 行样本库切到真实 CRM 测试库 `crm_dev`。本次重做 Step 0 只读体检，量化既有基线与口径断言的失效范围，并把探测事实补记入文档。**本轮未改动任何 Java 代码、指标 YAML 与测试断言。**
 
 ### 已完成事项
 1. **只读探测 6 轮**（`scripts/probe/step0_probe_*.py`、`step0_baseline_draft.py`；pymysql 直连，凭证运行时从 `mcp-server/src/main/resources/.env` 读取且不打印；每轮以 `START TRANSACTION READ ONLY` 开始、结束 `rollback`，仅执行 SELECT / EXPLAIN / SHOW）。
 2. **印证业务确认**：`expense_calendar_info` 391,093 行状态分布只有 `('10','0')` 一组；`expense_calendar_details` 15,294,611 行为 `('10','0')` 15,294,573 + `('10','1')` 38。两表均**无 state='20'**，退单以负数行存在：info 12,181 行合计 −29,098,188.09，details 564,969 行 → 负数抵消逻辑成立。
 3. **量级对比**：info 39.1 万 / details 1,529 万 / member 62.9 万（旧记录为 5,857 / 8,892 / 5,000）。
-4. **新基线采集并落草稿**：`mcp-server/src/test/resources/baseline/crmtest-baseline.DRAFT.yaml`（带 DRAFT，当前无测试读取，待复核后改名启用）。
+4. **新基线采集并落草稿**：`mcp-server/src/test/resources/baseline/crm_dev-baseline.DRAFT.yaml`（带 DRAFT，当前无测试读取，待复核后改名启用）。
 5. **10-30 追加探测（生日与性别）**，见下文「业务口径变化」与「未解决问题」。
 
 ### 修改文件
 - 文档：本文件、`BUSINESS_METRICS.md`（§五 年龄分布口径修订、§六 基线整段重写）、`PHASE1_TECH_PLAN.md`（§五/§九 默认时间范围与跨度上限标注已被取代）。
-- 非 Java 新增：`scripts/probe/` 6 个探测脚本、`mcp-server/src/test/resources/baseline/crmtest-baseline.DRAFT.yaml`。
+- 非 Java 新增：`scripts/probe/` 6 个探测脚本、`mcp-server/src/test/resources/baseline/crm_dev-baseline.DRAFT.yaml`。
 - **未改动**：`mcp-server` 主代码、`resources/metrics/*.yaml`、任何测试。
 
 ### 架构或技术决策
@@ -301,8 +301,8 @@
 - **未执行**：本轮**没有跑任何 Java 测试**（`mvn` 不在本机 PATH，Phase 2 全量 68 用例的当前状态未知）。既有硬编码 5000 样本基线的断言在真实库上必然失败，属**已定位、未修复**。
 - 真实库关键数字（窗口 2026-06-01~06-27，全局无过滤）：
   - 会员总览：总 628,527｜男 592,032｜女 29,969｜未知 6,526（三分区求和=总数 ✓）｜有消费会员 577,042｜累计消费 2,102,473,940.12。
-  - 门店业绩：314 组（空门店编码 398 行，其中 372 行连门店名也为空，归并 1 组）｜合计 113,923,128.62｜订单 185,228｜Top1 `01010102` 哈市鸿翔路旗舰店 4,960,148.38 / 3,134 单。
-  - 商品排行：Top1 53度飞天茅台 41,084,915.90 / 销量 24,198；Top5 为 SKU `198.0`「198plus」2,380,158.00 / 12,021 行。
+  - 门店业绩：314 组（空门店编码 398 行，其中 372 行连门店名也为空，归并 1 组）｜合计 113,923,128.62｜订单 185,228｜Top1 `01010102` 标杆旗舰店 4,960,148.38 / 3,134 单。
+  - 商品排行：Top1 头部白酒A 41,084,915.90 / 销量 24,198；Top5 为 SKU `198.0`「198plus」2,380,158.00 / 12,021 行。
   - 性别取值全枚举：`1`=592,032、`2`=29,969、`NULL`=6,524、`0`=2（DDL 注释仅定义 1男/2女，**0 含义未定义**）。
   - 按阴历生日的年龄分桶预演：19岁及以下 892｜40-49 822｜30-39 590｜50-59 342｜20-29 66｜≥60 54（合计 2,766，占有效会员 **0.44%**，其余 625,761 行仍归「未知」）。
   - 脏值二次核实（含自我纠正）：`expense_d_realamt` 正则判「非数字」7,871 条，但**以 CAST 结果为准复测 cast_null=0**（值形如 `.4`/`.25` 属合法写法），无金额丢失；`expense_d_qty` 2 条、`gross_margin` 351 条（空 11,369）CAST 亦全部成功；`expense_realamt` 无空无非数字。
@@ -311,11 +311,11 @@
   - **修正自己的两条误报**：① 前述 7,871 条脏值→实为 CAST 全部成功；② 「details 到 10-22、info 到 06-27，两表新鲜度不一致」→ 实为 details 在 06-28 之后仅有 2026-10-22 的 3 行离群数据，两表新鲜度基本一致。
 
 ### 未解决问题（均需业务/用户拍板，未擅自处理）
-1. **`tenant` 过滤在真实库不可用**：`member_tenant` 628,527 行 **100% 为空**（传任何租户值都返回 0 会员）；`expense_tenant` 61.6% 为空（240,924/391,093），非空唯一值仅 `小酒喔`。建议会员侧显式拒绝并说明原因，而非静默返回 0；订单侧「空租户」是否视同 `小酒喔` 待确认。
+1. **`tenant` 过滤在真实库不可用**：`member_tenant` 628,527 行 **100% 为空**（传任何租户值都返回 0 会员）；`expense_tenant` 61.6% 为空（240,924/391,093），非空唯一值仅 `标杆酒企`。建议会员侧显式拒绝并说明原因，而非静默返回 0；订单侧「空租户」是否视同 `标杆酒企` 待确认。
 2. **「异常 SKU」可能是真实商品**：`198.0/198plus`、`298.0/298plus`(3,231 行/96 万)、`99.0/99plus`(982 行/9.7 万) 在真实库窗口内按销售额排到**第 5 名**。旧「疑似价格误填、原样透出」的决定是在 5,857 行样本上做的，现会实质影响榜单，需重新确认过滤/合并口径。
 3. **商品排行在默认 18 个月窗口必然超时**：三个选项 — a) 给 `PRODUCT_RANKING` 设指标级跨度上限（如 92 天，代价最小）；b) 模板加 `FORCE INDEX`（仍 14s，超上限，不可行）；c) 请 CRM DBA 加复合索引 `(expense_d_buyDate, expense_d_state, del_flag, expense_d_gdcode)` — 属改 CRM 库，**未经授权不动**。
 4. **阴历生日的有效性**：① 覆盖率仅 0.44%，「未知」桶仍占绝对多数，需确认是否对外输出该分布；② 字段是**阴历**日期却与 `CURDATE()`（阳历）直接做 `TIMESTAMPDIFF`，周岁可能偏差约 ±1 个月，是否需要阴阳历换算需业务定；③ 若写入配置，`member_yin_birthday` 目前在 `piiColumns` 内但**不在 `piiComputeAllowedColumns`**，须先入白名单（该文件注释要求逐个 code review）。
-5. **既有测试基线失效未修**：`MetricsAsCodeMigrationReconciliationTest`（228 / 5000 / 2,445,299.92 / 哈市鸿翔路旗舰店 117,906.50 / 890,272.00 / 3993 / 2,660,605.52）、`Phase2MetricsReconciliationTest`（三处 5000、AGE_DIST 断言 rowCount=1 与「未知」=5000）、`PHASE2_METRICS_LAYER_TECH_PLAN.md` §8.2 示例基线同样滞后。
+5. **既有测试基线失效未修**：`MetricsAsCodeMigrationReconciliationTest`（228 / 5000 / 2,445,299.92 / 标杆旗舰店 117,906.50 / 890,272.00 / 3993 / 2,660,605.52）、`Phase2MetricsReconciliationTest`（三处 5000、AGE_DIST 断言 rowCount=1 与「未知」=5000）、`PHASE2_METRICS_LAYER_TECH_PLAN.md` §8.2 示例基线同样滞后。
 6. **趋势类不可验证**：数据是离散月份块（info 近 26 月仅 2024-12 / 2025-06 / 2025-10 / 2026-01 / 2026-06 有数据），环比/趋势在测试库上无法验证。
 7. 行政交付表格 `docs/ai-agent/PHASE1_SCHEDULE.xlsx` 的 Day4 基准数字与 R5/R6 已失真，待基线定稿后同步。
 8. `scripts/probe/` 探测脚本去留待定（可复用的基线采集工具，或用完即删）。〔已答复（同日）：**固定保留**〕
@@ -343,7 +343,7 @@
 - **框架新增 `maxRangeDays`（指标级时间跨度上限）**：`MetricDefinition` 新增字段，`MetricDefinitionParser` 显式映射、`MetricDefinitionValidator` 校验（0~全局上限之间才合法）、`QueryPlanValidator` 计算时取 `min(maxRangeDays, MetricsLimits.MAX_RANGE_DAYS)`：**显式越界 → 拒绝**（错误文案带“指标 xxx 的窗口上限”），**缺省窗口越界 → 收敛**。`0` 表示沿用全局 550 天，对存量指标零影响。`PRODUCT_RANKING` 同时声明 `maxRangeDays: 92` + `defaultWindowMonths: 3`。
 - **tenant 下线采用三层结构**：配置层（`metrics/*.yaml` 不再声明任何 tenant 维度/`optionalFilters`）→ 校验层（`QueryPlanValidator.normalizeFilters` 对未声明编码抛 `INVALID_PARAM`，因此模型传 `TENANT` 是**显式失败**而非静默忽略；`SqlCompiler` 不认的 code 不进 SQL，属二道兜底）→ 工具层（`tenant` 入参非空直接返回 `MSG_TENANT_UNSUPPORTED` 且不触库）。保留 Request DTO 的 `tenant` 字段作入参兼容；`MetricQueryService.columnHint/filterLabel` 删 tenant 分支；响应体 `scope` 注释去“租户”。
 - **Phase 1 手写 Mapper 不拆 tenant 形参**：`ExpenseStatMapper`/`MemberStatMapper` 仍作 `MetricsAsCodeMigrationReconciliationTest` 的**独立对账 oracle**，为保持两边写法独立、不破坏逐值对账，只加 javadoc 标明“已废弃、调用方必须传 null、不再被 MCP 工具调用”。
-- **对账基线外置**：新增测试作用域类 `BaselineFixtures`（SafeConstructor 读 `classpath:baseline/crmtest-baseline.yaml`）+ JUnit `Assumptions` 库名守卫（连非 crmtest 库时**跳过**而不是误报口径失败）。硬编码数值（旧 5000 样本口径）全部改为读基线。
+- **对账基线外置**：新增测试作用域类 `BaselineFixtures`（SafeConstructor 读 `classpath:baseline/crm_dev-baseline.yaml`）+ JUnit `Assumptions` 库名守卫（连非 crm_dev 库时**跳过**而不是误报口径失败）。硬编码数值（旧 5000 样本口径）全部改为读基线。
 - **AGE_DIST 改阴历**：`member_yin_birthday` 入 `piiComputeAllowedColumns`（可作计算输入、禁原值输出，裸列仍拒）；`expr` 改用 `STR_TO_DATE(列,'%Y-%m-%d')` 后再 `TIMESTAMPDIFF`，阴历日期与阳历 `CURDATE()` 直比的 ±1 月误差已获业务接受。同时修正 YAML 写法：`>-` 折叠块续行必须同缩进才会折成单行 SQL。
 
 ### 同日补充决定（用户答复本轮收尾的两个待确认项）
@@ -388,7 +388,7 @@ Step 0 只读探测新增事实（生日只输出粗粒度计数，不输出生�
 ### 风险
 - 92 天上限意味着“今年上半年商品排行”这类问题会被**确定性拒绝**，模型需向用户解释原因；若业务需要长窗口商品榜，只能走 DBA 加复合索引（需授权）或预聚合，不能靠放宽上限。
 - `AGE_DIST` 可用比例仅 0.44%（未知 99.56%），作为对外指标的解释成本很高；是否继续对外输出仍建议业务再确认。
-- 工具层拒绝 `tenant` 依靠入参非空判断；若模型改用自然语言描述租户（如“只算小酒喔”），服务端不会报错而是按全部统计输出，需靠提示词与 `explainMetric` 口径文案引导。
+- 工具层拒绝 `tenant` 依靠入参非空判断；若模型改用自然语言描述租户（如“只算标杆酒企”），服务端不会报错而是按全部统计输出，需靠提示词与 `explainMetric` 口径文案引导。
 
 ### 下一步
 - 等用户对基线数值（尤其 Top10 与合计）做业务复核；确认后本轮基线即为正式验收标准答案。
@@ -454,7 +454,7 @@ Step 0 只读探测新增事实（生日只输出粗粒度计数，不输出生�
 - 不触库单测：`mvn -o -B -pl mcp-server test -Dtest=SqlCompilerTest,MetricDefinitionValidatorTest,QueryPlanDefaultWindowTest,MetricToolInjectionTest,CrmAnalyticsToolTest` → **BUILD SUCCESS，Tests run: 63**（golden SQL 已验证 `NUM(e.expense_realamt)` 正确展开为 `CAST(...)`）。
 - 真库只读探测（`step0_probe_gender_join_perf.py`）：`member_mobile` 全局唯一（重复组=0）→ LEFT JOIN **零行放大**；固定窗口（06-01~06-27，185,228 单）join 分组冷跑 2,290ms / 热跑 2,037ms；三组求和=合计 113,923,128.62。EXPLAIN：会员侧 `index_mobile` 唯一回表 1 行，订单侧 `index_state`（低选择性）带 temporary+filesort。
 - 真库回归：`mvn -o -B -pl mcp-server test -Dtest=MetricsAsCodeMigrationReconciliationTest` → **BUILD SUCCESS，Tests run: 4**（含新增 `genderComparison_joinMatchesOracleAndInvariant`：与独立 oracle SQL 逐组一致 + 三组求和=合计不变式全部命中）。
-- 固定窗口标准答案（入 `baseline/crmtest-baseline.yaml` 的 `genderComparison` 段）：男 57,034,077.17 / 88,914 / 44,791；会员性别缺失 52,426,862.92 / 89,923 / 38,283；女 4,462,188.53 / 6,391 / 3,043。
+- 固定窗口标准答案（入 `baseline/crm_dev-baseline.yaml` 的 `genderComparison` 段）：男 57,034,077.17 / 88,914 / 44,791；会员性别缺失 52,426,862.92 / 89,923 / 38,283；女 4,462,188.53 / 6,391 / 3,043。
 
 ### 未解决问题
 1. 本指标三度量选型（实付/订单数/去重买家）需业务复核是否为老板想要的对比维度。
@@ -605,7 +605,7 @@ Step 0 只读探测新增事实（生日只输出粗粒度计数，不输出生�
 ## 2026-11-02：要客指标真库验证完成
 
 ### 本次目标
-执行 Phase 3 要客（VIP）指标的真库对账验证，确认所有指标在 crmtest 测试库上的计算结果与 oracle SQL 一致。
+执行 Phase 3 要客（VIP）指标的真库对账验证，确认所有指标在 crm_dev 测试库上的计算结果与 oracle SQL 一致。
 
 ### 已完成事项
 1. 修复 `VIP_CONSUMPTION_BY_STORE` 指标配置错误（`agg: SUM` → `agg: COUNT`）
@@ -623,10 +623,10 @@ Step 0 只读探测新增事实（生日只输出粗粒度计数，不输出生�
 ### 架构或技术决策
 - **指标状态升级**：所有 7 个 VIP 指标从 `UNCONFIRMED` 升级为 `CONFIRMED`
 - **测试覆盖**：采用 `@SpringBootTest` + `JdbcTemplate` oracle SQL 对比模式，确保编译层结果与手写 SQL 一致
-- **基线管理**：通过 `BaselineFixtures.assumeMatchesCurrentDb()` 确保测试仅在 crmtest 库上执行
+- **基线管理**：通过 `BaselineFixtures.assumeMatchesCurrentDb()` 确保测试仅在 crm_dev 库上执行
 
 ### 测试与验证结果
-**测试环境**：crmtest 测试库
+**测试环境**：crm_dev 测试库
 **测试用例**：12 个对账测试全部通过
 - VIP_OVERVIEW：2 个测试（快照数据 + 派生指标）
 - VIP_NEW：1 个测试（时间窗口计数）
@@ -636,7 +636,7 @@ Step 0 只读探测新增事实（生日只输出粗粒度计数，不输出生�
 - VIP_CONSUMPTION_BY_STORE：2 个测试（分组消费 + 合计一致性）
 - CrossMetricConsistency：2 个测试（跨指标一致性校验）
 
-**实测数据（crmtest）**：
+**实测数据（crm_dev）**：
 - 要客总数：10,779
 - 累计消费总额：98,485,021.43 元
 - 近一年半消费总额：66,848,372.22 元
@@ -658,7 +658,7 @@ Step 0 只读探测新增事实（生日只输出粗粒度计数，不输出生�
 - 确认 member_info_view 与 member_info 的数据同步机制
 - 考虑是否需要添加导购姓名维度（需关联员工表）
 - 探索要客流失预警分析（基于踢出规则 P1/P2/P3）
-- 更新 crmtest-baseline.yaml 添加 VIP 指标基线数据
+- 更新 crm_dev-baseline.yaml 添加 VIP 指标基线数据
 
 ## 2026-11-02：会员数据源口径变更（member_info → member_info_view）
 
@@ -687,7 +687,7 @@ Step 0 只读探测新增事实（生日只输出粗粒度计数，不输出生�
    - MemberStatMapper.xml：memberOverview 查询改为 `member_info_view`
 
 6. 更新基线数据文件：
-   - crmtest-baseline.yaml：所有会员相关基线数值更新为 `member_info_view` 数据
+   - crm_dev-baseline.yaml：所有会员相关基线数值更新为 `member_info_view` 数据
    - 新增 genderComparison 段落（3 个性别分组的销售额基线）
 
 7. 更新探测脚本：
@@ -707,7 +707,7 @@ Step 0 只读探测新增事实（生日只输出粗粒度计数，不输出生�
 - `mcp-server/src/main/resources/mapper/MemberStatMapper.xml`：memberOverview 查询表
 
 **基线数据**：
-- `mcp-server/src/test/resources/baseline/crmtest-baseline.yaml`：会员相关基线数值 + genderComparison 段落
+- `mcp-server/src/test/resources/baseline/crm_dev-baseline.yaml`：会员相关基线数值 + genderComparison 段落
 
 **脚本**：
 - `scripts/probe/step0_baseline_full.py`：所有 member_info 查询改为 member_info_view
@@ -774,7 +774,7 @@ Step 0 只读探测新增事实（生日只输出粗粒度计数，不输出生�
 **单元测试**（不连库，`@Test` 计数，无禁用用例）：
 - `SemanticRegistryTest` 7 个、`AdhocValidatorTest` 11 个、`AdhocSqlCompilerTest` 12 个、`AdhocQueryServiceTest` 6 个、`AdhocToolTest` 4 个，共 40 个。
 
-**真库集成对账**（crmtest，`AdhocReconciliationIT`）：5 个测试全部通过，耗时约 13 秒——
+**真库集成对账**（crm_dev，`AdhocReconciliationIT`）：5 个测试全部通过，耗时约 13 秒——
 1. VIP 总数：Ad-hoc（基线过滤 + IS_VIP 条件计数）== VIP_OVERVIEW `COUNT(*)`
 2. VIP 消费与人均：条件聚合 + Java 派生 == 指标口径（逐值相等）
 3. VIP_BY_STORE：192 门店分组行数 + 归一化映射整表相等（含空门店归并）
@@ -831,7 +831,7 @@ Step 0 只读探测新增事实（生日只输出粗粒度计数，不输出生�
 
 **5. 两处执行层缺陷修复（本提交）**
 - `SqlExecutor.withExecutionTimeHint` 改为幂等：编译器已自带 `/*+ MAX_EXECUTION_TIME */` 时不再重复注入——**重复 hint 在 MySQL 8 是语法错误 1064**，真库 IT 首跑即因此全线失败。
-- MySQL 保留字：`AS lines` 在 crmtest（8.0.21-5）直接 1064，对账测试别名统一改为 `line_cnt`（只读探测逐值验证：`alias_lines ERR / alias_line_cnt OK`）。
+- MySQL 保留字：`AS lines` 在 crm_dev（8.0.21-5）直接 1064，对账测试别名统一改为 `line_cnt`（只读探测逐值验证：`alias_lines ERR / alias_line_cnt OK`）。
 - 慢查询复核：`genderJoinMatchesMetric` 在整类同跑时顶到 25s 服务端上限（热缓存 ~10s、冷缓存 >25s），与口径无关。该例（及 detail join 例）窗口改为**基线末端 7 天**，两侧同窗口、逐值断言不变，让外部库缓存波动不再伪装成口径失败。未放宽生产侧 25s 上限。
 
 ### 修改文件
@@ -1042,7 +1042,7 @@ Step 0 只读探测新增事实（生日只输出粗粒度计数，不输出生�
 **修改**
 - 固化指标：`metrics/order.yaml`（`GENDER_CONSUMPTION_COMPARE` caliber/expr/注释）、`metrics/member.yaml`（两条性别指标 caliber/expr/`nullDimensionLabel`）。
 - 语义元数据：`semantic/metadata.yaml` 的 `ORDER_GENDER`/`DETAIL_GENDER` expr ELSE 分支。
-- 测试与基线：`SqlCompilerTest` golden、`MetricsAsCodeMigrationReconciliationTest` oracle SQL 与断言键、`AdhocReconciliationIT` 断言文案、`crmtest-baseline.yaml` 注释（基线数值存 `unknown` 键，不受影响）。
+- 测试与基线：`SqlCompilerTest` golden、`MetricsAsCodeMigrationReconciliationTest` oracle SQL 与断言键、`AdhocReconciliationIT` 断言文案、`crm_dev-baseline.yaml` 注释（基线数值存 `unknown` 键，不受影响）。
 - 文档：`BUSINESS_METRICS.md`/`METRICS_MAPPING.md` 活文档同步并标注变更日期；本日志历史条目与 PHASE2/plan 历史文档保留旧名不改。
 
 **验证**
@@ -1687,7 +1687,7 @@ GROUP BY CASE WHEN level_code LIKE '%companyLevel%' THEN SUBSTRING(level_code, 1
 1. `FilterSpec` 新增可选 `values`，操作符增加 `IN`/`NOT IN`；仅集合操作符可携带 `values`，`value` 必须为空，去重后最多 50 个（统一常量 `FilterSpec.MAX_IN_VALUES`），手机号三类列仍只允许 `=`。编译器按声明顺序展开 `IN (?,…)` 并绑定参数；不传 `values` 的旧请求 SQL 逐字不变。
 2. 新增受控 MCP 工具 `resolveOfficeStores`：`officeId`/`officeName` 二选一；固定 MyBatis SQL 逐条对齐 CRM `OfficeDao.getHDStationIDs` 的本节点+`parent_ids` 下级、`type IN (6,7,13,14,11,22,28)`、8 位 `HD_ID`、`del_flag='0'` 条件。按 IN 集合语义对 `HD_ID` 去重，不开放 `sys_office` 自由查询。
 3. 名称查询依次精确/前缀/包含；多候选或名称命中非门店机构返回 `needs_clarification`，不自行选择。`status=resolved` 的 `storeCodes` 可直接喂给 `member_allot_store IN`；超过 50 个返回 `too_many_stores` 且不给部分编码，禁止截断或分批求和。
-4. 真库实际调用 `resolveOfficeStores(officeId='1')`：机构“小酒喔总部”（officeType=2）、`storeCount=375`；用同一固定子查询统计 `member_info_view` 命中会员 426,332，均与既有实测一致。因 375>50，工具按约定返回 `too_many_stores`，未生成不完整会员筛选。
+4. 真库实际调用 `resolveOfficeStores(officeId='1')`：机构“集团总部”（officeType=2）、`storeCount=375`；用同一固定子查询统计 `member_info_view` 命中会员 426,332，均与既有实测一致。因 375>50，工具按约定返回 `too_many_stores`，未生成不完整会员筛选。
 5. 工具注册加入服务端 `ToolCallbackProvider`；客户端通过 MCP 动态发现、通用 `ToolCallbackDecorator` 包装，无需逐工具登记。`ChatServiceImpl` 系统提示词、`AdhocTool` 描述及 metadata guidance 已补机构范围和 IN 使用说明。
 6. 契约：`catalog-adhoc.json` +22/-1、`tool-definitions.json` +8/-4；`catalog-metric.json` 与 `sql-golden.json` 零 diff。旧 SQL 路径未改，既有 golden 用例无需变化。
 7. 实际测试：定向 131 项、mcp-server 全量 287 项、mcp-client（排除 TimeTest）43 项均通过。
@@ -1757,9 +1757,9 @@ CRM 实现方式（只读分析，不改 CRM 源码）：
 
 ## 2026-11-10（七）：名称类查询统一为“精确优先、逐级降级、多候选才追问”
 
-现象：用户问“我们小酒喔总部的一般发展用户和重要挽留用户一共有多少？”——`小酒喔总部` 是 `sys_office.name` 全名，却被系统走了追问路子。
+现象：用户问“我们集团总部的一般发展用户和重要挽留用户一共有多少？”——`集团总部` 是 `sys_office.name` 全名，却被系统走了追问路子。
 
-根因（在工具实现，不在提示词）：`OfficeStoreTool.resolveByName` 虽然已按 精确 → 前缀 → 包含 逐级查询，但“唯一命中”后又加了一道 `STORE_TYPES` 类型校验：`小酒喔总部` 的 `type=2`（总部，不在门店类型集合 6/7/13/14/11/22/28 内），于是返回 `needs_clarification / non_store_office`，要求用户确认后用 officeId 重查。而按 officeId 的路径本来就能解析非门店机构的下级门店，两条路径行为不一致 → 名称查询被凭空多绕一问。另：原“精确”档实际用的是 `LIKE #{officeName}`（无通配符），名称里若含 `%`/`_` 会退化成模糊匹配。
+根因（在工具实现，不在提示词）：`OfficeStoreTool.resolveByName` 虽然已按 精确 → 前缀 → 包含 逐级查询，但“唯一命中”后又加了一道 `STORE_TYPES` 类型校验：`集团总部` 的 `type=2`（总部，不在门店类型集合 6/7/13/14/11/22/28 内），于是返回 `needs_clarification / non_store_office`，要求用户确认后用 officeId 重查。而按 officeId 的路径本来就能解析非门店机构的下级门店，两条路径行为不一致 → 名称查询被凭空多绕一问。另：原“精确”档实际用的是 `LIKE #{officeName}`（无通配符），名称里若含 `%`/`_` 会退化成模糊匹配。
 
 改动：
 1. `OfficeMapper` 新增 `findOfficesByExactNames(names)`，SQL 用 `a.name IN (...)`（= 语义，不是 LIKE），只接受服务端生成的确定变形；`findOfficeCandidatesByName` 继续承担前缀/包含。
@@ -1768,7 +1768,7 @@ CRM 实现方式（只读分析，不改 CRM 源码）：
 4. 测试 `OfficeStoreToolTest`：新增全名精确命中总部（type=2）→ resolved/375 店、精确+后缀变形命中、包含唯一命中直接用、全角空格归一化；多候选用例改为断言精确档空才走前缀并出候选；删除原 `non_store_office` 断言。
 
 真库实测（只读）：
-- `resolveOfficeStores(officeName='小酒喔总部')` → `status=resolved`、`officeId=1`、`officeType=2`、`storeCount=375`、`storeCodes` 长度 375、无 `candidates`。
+- `resolveOfficeStores(officeName='集团总部')` → `status=resolved`、`officeId=1`、`officeType=2`、`storeCount=375`、`storeCodes` 长度 375、无 `candidates`。
 - 目标答案：`member_info_view` 中 `del_flag='0'` 且 `member_allot_store IN (总部 375 店)` 且 `customer_cost IN ('一般发展用户','重要挽留用户')` = **136,769**（一般发展用户 125,810 + 重要挽留用户 10,959），与 CRM 列表页 136,769 一致。
 
 回归：`guessStation` 本就是精确（含 +店）→ 前缀 → 包含、命中即停，行为未变；`GuessToolTest` 5 项通过。
@@ -1797,5 +1797,5 @@ CRM 实现方式（只读分析，不改 CRM 源码）：
 - `office.id=1` 门店数 **375 → 369**（少的 6 个为要客部 13 ×5、新媒体 14 ×1；这 6 个编码上会员数为 **0**）。
 - `guessStation("竹叶青长江路店")` → `matchedBy=none`、`count=0`、`actionHint=no_match`（type=18 被排除，符合预期）。
 - `guessStation("哈尔滨尚志世纪店")` → `matchedBy=office_only`、`stationCode=51010211`、`memberCount=0`、`hasOrders=true`、`actionHint=unique_match`。
-- “小酒喔总部的一般发展用户和重要挽留用户一共有多少”：369 店口径 = **136,769**（一般发展用户 125,810 + 重要挽留用户 10,959），与收敛前 375 店结果完全一致。
+- “集团总部的一般发展用户和重要挽留用户一共有多少”：369 店口径 = **136,769**（一般发展用户 125,810 + 重要挽留用户 10,959），与收敛前 375 店结果完全一致。
 

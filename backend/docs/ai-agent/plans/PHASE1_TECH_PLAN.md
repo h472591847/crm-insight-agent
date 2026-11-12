@@ -164,10 +164,10 @@ mcp/config/ToolConfiguration.java                      // toolObjects 追加 crm
 
 1. **默认时间范围**：用户未指定时取**本月**（当前自然月）。〔2026-10-29 已改为**近一年半**，2026-10-30 补记〕
 2. **SKU 维度**：商品排行以 `expense_d_gdcode`（商品代码）为准。
-3. **tenant 过滤**：所有工具保留可选 `tenant` 参数；测试数据多租户时按传入值限定。〔**2026-10-30 已决定并落地：全面取消**，改为只关注门店统计。取消依据：`member_tenant` 100% 为空、`expense_tenant` 61.6% 为空（非空唯一值仅 `小酒喔`），无区分度。三层实现：① 指标 YAML 不再声明 tenant 维度/可选过滤；② `QueryPlanValidator` 对未声明的 `TENANT` 编码抛 `INVALID_PARAM`（**显式拒绝，不静默忽略**）；③ 工具层收到 `tenant` 入参直接返回“已不支持”说明且不触库。Request DTO 保留 `tenant` 字段仅作入参兼容；Phase 1 手写 Mapper 保留 tenant 形参但仅作对账 oracle、调用方必须传 null〕
+3. **tenant 过滤**：所有工具保留可选 `tenant` 参数；测试数据多租户时按传入值限定。〔**2026-10-30 已决定并落地：全面取消**，改为只关注门店统计。取消依据：`member_tenant` 100% 为空、`expense_tenant` 61.6% 为空（非空唯一值仅 `标杆酒企`），无区分度。三层实现：① 指标 YAML 不再声明 tenant 维度/可选过滤；② `QueryPlanValidator` 对未声明的 `TENANT` 编码抛 `INVALID_PARAM`（**显式拒绝，不静默忽略**）；③ 工具层收到 `tenant` 入参直接返回“已不支持”说明且不触库。Request DTO 保留 `tenant` 字段仅作入参兼容；Phase 1 手写 Mapper 保留 tenant 形参但仅作对账 oracle、调用方必须传 null〕
 4. **会员总览维度**：~~支持按门店/租户拆分~~ →〔2026-10-30〕仅支持按**门店**（`member_allot_store`）拆分，**默认不拆分**（返回全局总数与性别分布）。
 5. **权限简化**：Phase 1 不接入真实鉴权，`stationCode` 仅可选过滤（`tenant` 已取消）；生产接入前必须补服务端数据权限校验。
-6. **基线数据集变更（2026-10-30）**：数据源已切为真实测试库 `crmtest`（三表 39.1 万 / 1,529 万 / 62.9 万行），本文件与 DEVELOPMENT_LOG 10-28/10-29 中基于 5000 行样本的基线数字（228 组 / 2,445,299.92 / 5000 人 等）**均已失效**，现行基线见 `BUSINESS_METRICS.md` §六。
+6. **基线数据集变更（2026-10-30）**：数据源已切为真实测试库 `crm_dev`（三表 39.1 万 / 1,529 万 / 62.9 万行），本文件与 DEVELOPMENT_LOG 10-28/10-29 中基于 5000 行样本的基线数字（228 组 / 2,445,299.92 / 5000 人 等）**均已失效**，现行基线见 `BUSINESS_METRICS.md` §六。
 7. **商品排行时间窗口上限（2026-10-30）**：不再依赖全局 550 天，`PRODUCT_RANKING` 启用**指标级** `maxRangeDays: 92` + `defaultWindowMonths: 3`，超长区间直接拒绝（旧实测 18 个月窗口 75.8s 超时）；同时确认异常 SKU（如 `198.0`）按真实商品统计、不过滤不合并且允许进榜。
 
 ---
