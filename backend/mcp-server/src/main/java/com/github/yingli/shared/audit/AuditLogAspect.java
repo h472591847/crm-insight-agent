@@ -1,12 +1,14 @@
 package com.github.yingli.shared.audit;
 
-import cn.hutool.core.date.StopWatch;
 import lombok.extern.slf4j.Slf4j;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
+
+import java.lang.reflect.Array;
+import java.util.Collection;
 
 /**
  * 查询审计日志 AOP。切所有运行期查询入口，输出统一格式的审计行。
@@ -31,8 +33,7 @@ public class AuditLogAspect {
     @Around("execution(* com.github.yingli.metrics.service.MetricQueryService.query(..))"
           + " || execution(* com.github.yingli.adhoc.service.AdhocQueryService.query(..))")
     public Object auditQuery(ProceedingJoinPoint pjp) throws Throwable {
-        StopWatch sw = new StopWatch();
-        sw.start();
+        long start = System.currentTimeMillis();
         Object result;
         Throwable error = null;
         try {
@@ -41,11 +42,11 @@ public class AuditLogAspect {
             error = t;
             result = null;
         }
-        sw.stop();
+        long costMs = System.currentTimeMillis() - start;
 
         String point = pjp.getTarget().getClass().getSimpleName()
                      + "." + pjp.getSignature().getName();
-        String summary = extractSummary(result, error, sw.getTotalTimeMillis());
+        String summary = extractSummary(result, error, costMs);
         log.info("[AUDIT] service={} args={} {}", point, argsPreview(pjp.getArgs()), summary);
 
         if (error != null) {
