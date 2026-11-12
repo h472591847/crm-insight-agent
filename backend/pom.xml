@@ -155,6 +155,40 @@
             </dependency>
         </dependencies>
     </dependencyManagement>
+
+    <!-- ==================== 所有子模块共享的依赖 ==================== -->
+    <!-- Maven 父级 <dependencies> 中的声明会被所有子模块自动继承（含 scope）。
+         这里只放真正所有子模块都需要的共享三方依赖；模块间内部依赖（mcp-common）
+         保留在各子模块自己声明，避免未来新增子模块被迫继承不需要的依赖。 -->
+    <dependencies>
+
+        <!-- Lombok：注解 + 注解处理器，compiler plugin 已配置 annotationProcessorPaths -->
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+        </dependency>
+
+        <!-- Apache Commons Lang3：通用工具类（StringUtils 等） -->
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-lang3</artifactId>
+        </dependency>
+
+        <!-- Spring AOP：运行时切面支持（AuditLogAspect 审计日志等） -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-aop</artifactId>
+        </dependency>
+
+        <!-- Spring Boot Test：JUnit5 / Mockito / AssertJ 等测试框架（test scope 继承后仍为 test） -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+    </dependencies>
+
     <build>
         <pluginManagement>
             <plugins>
@@ -216,6 +250,8 @@
                         <exclude>**/Phase2MetricsReconciliationTest*</exclude>
                         <exclude>**/Step0DataProbeTest*</exclude>
                         <exclude>**/VipMetricsReconciliationTest*</exclude>
+                        <!-- mcp-client 遗留测试：@SpringBootTest 加载 Application 需豆包 API Key，且包名 com.test 不在业务包空间 -->
+                        <exclude>**/com/test/*Test*</exclude>
                     </excludes>
                 </configuration>
             </plugin>

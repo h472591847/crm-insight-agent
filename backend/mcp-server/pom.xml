@@ -45,17 +45,8 @@
             <artifactId>mysql-connector-j</artifactId>
         </dependency>
 
-        <!--   Lombok依赖    -->
-        <dependency>
-            <groupId>org.projectlombok</groupId>
-            <artifactId>lombok</artifactId>
-        </dependency>
-
-        <!--   通用工具类依赖    -->
-        <dependency>
-            <groupId>org.apache.commons</groupId>
-            <artifactId>commons-lang3</artifactId>
-        </dependency>
+        <!-- 注：lombok / commons-lang3 / spring-boot-starter-aop / spring-boot-starter-test
+             已上移到父级 backend/pom.xml 的 <dependencies>，这里不再重复声明 -->
 
         <!--   Markdown工具类依赖    -->
         <dependency>
@@ -81,12 +72,6 @@
             <artifactId>mybatis-plus-jsqlparser</artifactId>
         </dependency>
 
-        <!--   测试依赖    -->
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-test</artifactId>
-            <scope>test</scope>
-        </dependency>
     </dependencies>
 
     <build>
