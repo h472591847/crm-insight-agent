@@ -143,6 +143,12 @@ npx.cmd playwright test   # Q1-Q4 自动跑完 + 视频 + 断言
 | 🛠 [新增指标 SOP](docs/NEW_METRIC_SOP.md) | 产品给口径 → draftMetric 起草 → explainMetric 干跑 → 对账 |
 | 🔒 [安全设计](docs/SECURITY.md) | 三层纵深 + 只读账号 + 审计日志 |
 
+## ☕ Support & Sponsorship
+
+If **crm-insight-agent** saves you time or helps your workflow, consider buying me a coffee! Your support keeps this open-source project maintained and fuels future feature updates.
+
+[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/h472591847)
+
 ## License
 
 MIT — 可复用于企业 Agent 工具层参考实现。
