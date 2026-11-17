@@ -1,5 +1,7 @@
 # CRM Insight Agent
 
+> [English](./README.md) | **[简体中文](./README_CN.md)**
+
 > 基于 **标准 MCP (Model Context Protocol)** 构建的企业级数据分析 Agent。
 > 自然语言提问 → 确定性 SQL 编译 → 只读安全闸门 → 秒级返回聚合结果。
 
