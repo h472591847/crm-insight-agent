@@ -1,6 +1,8 @@
 # CRM Insight Agent
 
-> An enterprise-grade data analysis Agent built on the **standard MCP (Model Context Protocol)**.
+> [English](./README.md) | **[简体中文](./README_CN.md)**
+
+> An enterprise-grade data analysis Agent built on the **standard MCP (Model Context Protocol)**...
 > Natural Language Query → Deterministic SQL Compilation → Read-Only Safety Gate → Sub-Second Aggregated Results.
 
 <p align="center">
