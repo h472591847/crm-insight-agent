@@ -198,7 +198,7 @@ entities:
 
 ### Tom Zafred 给的 SQL（2026-11-19 DEV.to 同行评审）
 
-> Tom Zafred 是 Sentry 资深工程师，在 DEV.to 上发现我们项目的 cardinality 纯手工声明后，提供了这条 SQL：
+> Tom Zafred（Founder & Principal Systems Architect at Biomed Systems Limited UK，MCP 治理工具链作者）在 DEV.to 同行评审中发现我们项目的 cardinality 纯手工声明后，提供了这条 SQL：
 
 ```sql
 SELECT TABLE_NAME, INDEX_NAME, MIN(COLUMN_NAME) AS key_col
