@@ -28,8 +28,9 @@
 │ • 会话编排      │                   │ • SqlCompiler   │          └─────────┘
 │ • SSE 流式输出  │                   │ • MetricRegistry│
 │ • ChatMemory    │                   │ • ReadOnlyGuard │          ┌─────────┐
-└─────────────────┘                   └─────────────────┘ ◄───────► │  Redis  │
-                                                                     │ Stack   │
+└─────────────────┘                   │ • MCP Resource  │ ◄───────► │  Redis  │
+                                      │ • MetaValidator │          │ Stack   │
+                                      └─────────────────┘          └─────────┘
 ```
 
 ## 快速开始
@@ -114,9 +115,17 @@ npx.cmd playwright test   # Q1-Q4 自动跑完 + 视频 + 断言
 
 | 层 | 机制 | 防什么 |
 |---|---|---|
-| **编译期闸门** | 表/列白名单 + 时间边界 + grain 不跨粒度 | 模型乱填参数 |
+| **编译期闸门** | 表/列白名单 + 时间边界 + grain 不跨粒度 + LIKE 前导通配符拒绝 + INFORMATION_SCHEMA FK cardinality 自校验 | 模型乱填参数 / 索引绕避 / YAML 与 DDL cardinality 漂移 |
 | **执行层 Guard** | ReadOnlySqlGuard — 正则 + 关键词匹配 + 只读账号 | 写操作 / DDL / 系统对象 |
 | **运行期兜底** | maxRows / queryTimeout / MAX_EXECUTION_TIME hint | 慢查询 / 结果集爆炸 |
+
+### MCP Resource 精简 payload
+
+Tool description 里嵌大段静态参考表（如 `set_level` 50+ 编码）会把 `tool-definitions.json` 膨胀到 ~50KB — LLM 解析慢。改为 **MCP Resource**（`crm://levels/set_level-codes`）按需拉取：
+
+- `tool-definitions.json` 从 **50KB → 8KB**
+- LLM 只在需要时读 Resource，不是每次都解析整段编码表
+- `ToolConfiguration.levelCodesResource()` 启动时注册 bean
 
 ### SQL 可审计
 
