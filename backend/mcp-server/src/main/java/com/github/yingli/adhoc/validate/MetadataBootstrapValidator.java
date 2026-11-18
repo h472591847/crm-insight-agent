@@ -108,27 +108,32 @@ public class MetadataBootstrapValidator implements CommandLineRunner {
     }
 
     /**
-     * Tom Zafred 提供的 SQL —— 从 INFORMATION_SCHEMA 自动推断单列唯一索引列。
-     * 返回 Map<table_lowercase, Set<col_lowercase>>
+     * 从 INFORMATION_SCHEMA.STATISTICS 推断单列唯一索引列。
+     *
+     * <p>Tom Zafred 指出原 SQL 的 bug：WHERE 里先过滤 SEQ_IN_INDEX = 1，
+     * 复合索引 (A, B) 只剩首列 A，GROUP BY + HAVING COUNT(DISTINCT COLUMN_NAME) = 1 变成恒真，
+     * 导致 expense_orderId 这类复合索引首列被误判为单列唯一索引。
+     *
+     * <p>修正版：不过滤 SEQ_IN_INDEX，按 TABLE_NAME + INDEX_NAME 分组，
+     * HAVING COUNT(*) = 1 — group 只有一行 = 单列唯一索引；多行 = 复合索引（排除）。
+     * SELECT 用 MIN(COLUMN_NAME) 规避 MySQL ONLY_FULL_GROUP_BY。
+     *
+     * <p>返回 Map<table_lowercase, Set<col_lowercase>>
      */
     private Map<String, Set<String>> loadSingleColUniqueKeys() {
-        // INFORMATION_SCHEMA 在不同数据库实现略有差异，MySQL 用 TABLE_SCHEMA
-        // DATABASE() 返回当前连接的 schema 名
         String sql = """
-                SELECT TABLE_NAME, COLUMN_NAME
+                SELECT TABLE_NAME, MIN(COLUMN_NAME) AS key_col
                 FROM INFORMATION_SCHEMA.STATISTICS
-                WHERE TABLE_SCHEMA = DATABASE()
-                  AND NON_UNIQUE = 0
-                  AND SEQ_IN_INDEX = 1
-                GROUP BY TABLE_NAME, INDEX_NAME, COLUMN_NAME
-                HAVING COUNT(DISTINCT COLUMN_NAME) = 1
+                WHERE TABLE_SCHEMA = DATABASE() AND NON_UNIQUE = 0
+                GROUP BY TABLE_NAME, INDEX_NAME
+                HAVING COUNT(*) = 1
                 """;
 
         Map<String, Set<String>> result = new HashMap<>();
         try {
             jdbc.query(sql, rs -> {
                 String table = rs.getString("TABLE_NAME").toLowerCase(Locale.ROOT);
-                String col = rs.getString("COLUMN_NAME").toLowerCase(Locale.ROOT);
+                String col = rs.getString("key_col").toLowerCase(Locale.ROOT);
                 result.computeIfAbsent(table, k -> new HashSet<>()).add(col);
             });
         } catch (Exception e) {

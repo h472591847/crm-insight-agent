@@ -147,20 +147,48 @@ class MetadataBootstrapValidatorTest {
         assertNull(inferred);
     }
 
+    // ——————————————————————————————————— 场景 6：复合唯一索引首列不应被识别为单列唯一（Tom Zafred bug 修复） ———————————————————————————————————
+
+    @Test
+    void compositeUniqueIndex_firstColumn_not_treated_as_single_col_unique() throws Exception {
+        // expense_calendar_info.expense_orderId 是复合唯一索引 (expense_orderId + expense_d_state) 的首列
+        // 修正版 SQL 不会把它识别为单列唯一索引（HAVING COUNT(*) > 1 排除）
+        // 所以 mock 结果里不应该出现 expense_orderId
+        JdbcTemplate jdbc = mockJdbc(List.<String[]>of(
+                new String[]{"member_info_view", "member_mobile"}   // 只有 member_mobile 是真正的单列唯一
+                // 注意：expense_orderId 不在结果里 —— 复合索引被排除了
+        ));
+
+        SemanticRegistry registry = mockRegistryWith("detail", "order", "to_one",
+                "ed.expense_orderId = e.expense_orderId", "ed", "expense_calendar_details",
+                "e", "expense_calendar_info");
+
+        Map<String, String> aliasMap = Map.of(
+                "ed", "expense_calendar_details",
+                "e", "expense_calendar_info"
+        );
+
+        String inferred = invokeInfer(jdbc, registry, "detail", "order", "to_one",
+                "ed.expense_orderId = e.expense_orderId", aliasMap);
+
+        // expense_orderId 不在单列唯一索引结果里 → 推断不了 to_one → 返回 null → 信任 YAML
+        assertNull(inferred);
+    }
+
     // ——————————————————————————————————— 工具方法 ———————————————————————————————————
 
-    /** Mock JdbcTemplate.query 对 Tom SQL 返回预设的 TABLE_NAME/COLUMN_NAME 行 */
+    /** Mock JdbcTemplate.query 对修正版 SQL 返回预设的 TABLE_NAME/key_col 行。
+     * 修正版 SQL: SELECT TABLE_NAME, MIN(COLUMN_NAME) AS key_col ... HAVING COUNT(*) = 1
+     * 复合索引首列不会出现在结果里（GROUP BY + COUNT(*) > 1 排除）。 */
     private JdbcTemplate mockJdbc(List<String[]> rows) {
         JdbcTemplate jdbc = mock(JdbcTemplate.class);
         doAnswer(invocation -> {
             RowCallbackHandler handler = invocation.getArgument(1);
-            // mock 一个 ResultSet
             var rs = mock(java.sql.ResultSet.class);
-            int[] idx = {0};
             for (String[] row : rows) {
                 when(rs.next()).thenReturn(true);
                 when(rs.getString("TABLE_NAME")).thenReturn(row[0]);
-                when(rs.getString("COLUMN_NAME")).thenReturn(row[1]);
+                when(rs.getString("key_col")).thenReturn(row[1]);
                 handler.processRow(rs);
             }
             when(rs.next()).thenReturn(false);
