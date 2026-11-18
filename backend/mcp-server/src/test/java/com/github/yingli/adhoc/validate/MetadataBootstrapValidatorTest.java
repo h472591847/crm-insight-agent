@@ -45,11 +45,12 @@ class MetadataBootstrapValidatorTest {
         assertEquals(SemanticRegistry.RelationshipDef.TO_ONE, inferred);
     }
 
-    // ——————————————————————————————————— 场景 2：member→order to_many ———————————————————————————————————
+    // ——————————————————————————————————— 场景 2：member→order — SQL 证不了 to_one → 返回 null（信任 YAML） ———————————————————————————————————
 
     @Test
-    void memberToOrder_infers_to_many_when_expenseMobileIsNotUnique() throws Exception {
-        // INFORMATION_SCHEMA 里 expense_calendar_info.expense_mobile 没有单列唯一索引（一对多）
+    void memberToOrder_null_when_expenseMobileHasNoUniqueIndex_trusts_yaml() throws Exception {
+        // expense_calendar_info.expense_mobile 没有唯一索引
+        // 新逻辑：只证 to_one，不证 to_many → SQL 证不了 → 返回 null → 信任 YAML 声明
         JdbcTemplate jdbc = mockJdbc(List.<String[]>of(
                 new String[]{"member_info_view", "member_mobile"}   // 只有 member_mobile 唯一
                 // 注意：没有 expense_calendar_info.expense_mobile
@@ -67,7 +68,9 @@ class MetadataBootstrapValidatorTest {
         String inferred = invokeInfer(jdbc, registry, "member", "order", "to_many",
                 "mv.member_mobile = e.expense_mobile", aliasMap);
 
-        assertEquals(SemanticRegistry.RelationshipDef.TO_MANY, inferred);
+        // 目标表 expense_calendar_info 的 expense_mobile 没有唯一索引 → SQL 证不了 to_one → 返回 null
+        assertNull(inferred);
+        // null = 信任 YAML 声明 to_many，validateAll 里不打 WARN
     }
 
     // ——————————————————————————————————— 场景 3：YAML 声明 to_many，SQL 能证明确实是 to_one（YAML 过度保守） ———————————————————————————————————
