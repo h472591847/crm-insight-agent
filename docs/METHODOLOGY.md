@@ -220,20 +220,19 @@ HAVING COUNT(*) = 1;
   - JOIN 列没有唯一索引 → **返回 null，信任 YAML 声明**（不打 WARN）
 - **不阻塞启动**：数据库没连上时跳过，打 WARN 即可
 
-### 真实 CRM schema 跑出来的结果（2026-11-19 更新）
-
-**已声明的 3 条 YAML relationship 全部自动验证通过：**
+### 真实 CRM schema 跑出来的结果
 
 ```
-member↔order:    YAML=to_many, SQL=to_many → ✅ 一致
-order↔member:    YAML=to_one,  SQL=to_one  → ✅ 一致（member_mobile 已加 UNIQUE INDEX）
-detail↔member:   YAML=to_one,  SQL=to_one  → ✅ 一致
-校验完成：3 条已声明关系，0 条不一致
+member↔order:    无法从 INFORMATION_SCHEMA 推断（JOIN 列无唯一索引），跳过
+member↔detail:   无法推断，跳过
+order↔member:    无法推断（member_mobile 是普通 INDEX 不是 UNIQUE），跳过
+detail↔member:   无法推断（member_mobile 是普通 INDEX 不是 UNIQUE），跳过
+校验完成：共 3 条已声明关系，0 条不一致（全部跳过 = 信任 YAML 声明）
 ```
 
 **detail→order 未声明**：`expense_orderId` 在 `expense_calendar_info` 上只有普通 BTREE INDEX（和 `expense_d_state` 组成复合索引才唯一），Tom 的 SQL 只抓单列唯一索引。暂不声明 detail↔order relationship，三表组合走 `adhocQueryBatch` 拆成独立查询块。
 
-**中间态（已解决）**：首次跑时 4 条全跳过，根因 `member_mobile` DDL 是普通 INDEX 不是 UNIQUE。已执行 `ALTER TABLE member_info ADD UNIQUE INDEX ...` 修复 — 业务一对一终于和 DDL 对齐。
+**根因**：`member_mobile` 在业务上是一对一（一个手机号 = 一个会员），但 DDL 里是普通 INDEX 不是 UNIQUE（见 `crmtest(用户订单消费相关ddl).sql` L278）。SQL 只认 DDL 不认业务逻辑。CRM DBA 未授权执行 `ALTER TABLE member_info ADD UNIQUE INDEX ...`，故跳过不报错。
 
 ### 为什么只证 to_one 不证 to_many
 
