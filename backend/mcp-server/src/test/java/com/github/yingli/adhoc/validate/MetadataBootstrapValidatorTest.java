@@ -25,7 +25,8 @@ class MetadataBootstrapValidatorTest {
     @Test
     void orderToMember_infers_to_one_when_memberMobileHasUniqueIndex() throws Exception {
         // Tom 的 SQL 从 INFORMATION_SCHEMA 返回：member_info_view.member_mobile 有单列唯一索引
-        JdbcTemplate jdbc = mockJdbc(List.of(
+        // 注意：List.<String[]>of 必须显式类型参数，否则 javac 会把数组展开成可变参数 → List<String>
+        JdbcTemplate jdbc = mockJdbc(List.<String[]>of(
                 new String[]{"member_info_view", "member_mobile"}   // 唯一索引列
         ));
 
@@ -49,7 +50,7 @@ class MetadataBootstrapValidatorTest {
     @Test
     void memberToOrder_infers_to_many_when_expenseMobileIsNotUnique() throws Exception {
         // INFORMATION_SCHEMA 里 expense_calendar_info.expense_mobile 没有单列唯一索引（一对多）
-        JdbcTemplate jdbc = mockJdbc(List.of(
+        JdbcTemplate jdbc = mockJdbc(List.<String[]>of(
                 new String[]{"member_info_view", "member_mobile"}   // 只有 member_mobile 唯一
                 // 注意：没有 expense_calendar_info.expense_mobile
         ));
@@ -75,7 +76,7 @@ class MetadataBootstrapValidatorTest {
     void detects_mismatch_when_yaml_says_to_many_but_sql_proves_to_one() throws Exception {
         // SQL 能证明确实是 to_one（member_mobile 有唯一索引），但 YAML 错误声明为 to_many
         // 这种情况应该打 WARN — 我们改后的逻辑：SQL 能证伪 to_many 声明
-        JdbcTemplate jdbc = mockJdbc(List.of(
+        JdbcTemplate jdbc = mockJdbc(List.<String[]>of(
                 new String[]{"member_info_view", "member_mobile"}
         ));
 
