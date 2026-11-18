@@ -49,17 +49,17 @@ public class ToolConfiguration {
         String content = loadClasspathDoc("docs/LEVEL_CODES.md");
         log.info("MCP Resource registered: crm://levels/set_level-codes ({} chars)", content.length());
 
-        var resource = McpSchema.Resource.builder("crm://levels/set_level-codes")
+        // SDK 0.17.0: Resource 有 Builder（无参 builder + setter），TextResourceContents/ReadResourceResult 是 record 直接构造
+        var resource = McpSchema.Resource.builder()
+                .uri("crm://levels/set_level-codes")
                 .name("CRM Level Codes Reference")
                 .description("set_level 编码表（AA~HC 模式），按需拉取避免 tool-definitions.json 膨胀")
                 .mimeType("text/markdown")
                 .build();
 
         var spec = new McpServerFeatures.SyncResourceSpecification(resource, (exchange, request) ->
-                McpSchema.ReadResourceResult.builder(
-                        List.of(McpSchema.TextResourceContents.builder(request.uri(), content)
-                                .mimeType("text/markdown").build())
-                ).build()
+                new McpSchema.ReadResourceResult(
+                        List.of(new McpSchema.TextResourceContents(request.uri(), "text/markdown", content)))
         );
         return List.of(spec);
     }
