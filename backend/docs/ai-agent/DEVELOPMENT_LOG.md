@@ -1834,15 +1834,15 @@ CRM 实现方式（只读分析，不改 CRM 源码）：
      ```
    - 实现：启动期 CommandLineRunner 跑 SQL，缓存单列唯一索引列 Map，解析 YAML relationship 的 ON 条件推断 cardinality
    - **只证 to_one，不证 to_many**：JOIN 列有唯一索引 → 证实 to_one；没有唯一索引 → 返回 null 信任 YAML 声明（不打 WARN）
-   - 真实 CRM schema 跑数：
+   - 真实 CRM schema 跑数（member_mobile 已加 UNIQUE INDEX，2026-11-19 更新）：
      ```
-     member↔order: 无法推断（JOIN 列无唯一索引），跳过
-     member↔detail: 无法推断，跳过
-     order↔member: 无法推断，跳过
-     detail↔member: 无法推断，跳过
-     校验完成：共 4 条关系，0 条不一致
+     member↔order:  YAML=to_many, SQL=to_many → ✅ 一致
+     order↔member:  YAML=to_one,  SQL=to_one  → ✅ 一致（member_mobile UNIQUE INDEX）
+     detail↔member: YAML=to_one,  SQL=to_one  → ✅ 一致
+     校验完成：3 条已声明关系，0 条不一致
      ```
-   - 根因：`member_mobile` 业务上是一对一，但 DDL 里是普通 INDEX 不是 UNIQUE。SQL 只认 DDL 不认业务逻辑。
+   - detail→order 未声明：expense_orderId 只有普通 BTREE INDEX（复合索引含 expense_d_state 才唯一），暂走 adhocQueryBatch
+   - 中间态：首次跑时 4 条全跳过，根因 member_mobile DDL 无 UNIQUE。已 ALTER TABLE 修复。
    - 设计选择：只做正向证实，不做反向证伪。宁可漏判 1 条，不误报 10 条。
 
 ### MCP SDK 0.17.0 API 踩坑
@@ -1881,15 +1881,19 @@ CRM 实现方式（只读分析，不改 CRM 源码）：
 
 - GitHub Actions 全绿（4 次 CI 迭代后 `tool-definitions.json` 契约基线更新完成）
 - 本地全量编译通过：`mvnw -o -pl mcp-server test`
-- MetadataBootstrapValidator 真实 CRM schema 跑数：4 条关系全跳过、0 不一致
+- MetadataBootstrapValidator 真实 CRM schema 跑数：3 条已声明关系全部通过、0 条不一致（member_mobile 已加 UNIQUE INDEX）；detail→order 未声明，暂走 adhocQueryBatch
 
 ### 未解决问题
 
-1. **CRM DDL 历史遗留**：`member_mobile` 业务上是一对一但 DDL 没 UNIQUE 约束，SQL 无法证 to_one。需 CRM DBA 确认是否加 `ALTER TABLE member_info ADD UNIQUE INDEX ...`（未授权不动）。
-2. **Tom Zafred 未进一步回复**：首轮建议已落地，等他 review。
+1. ~~**CRM DDL 历史遗留**：`member_mobile` 业务上是一对一但 DDL 没 UNIQUE 约束~~ — ✅ **已解决**，2026-11-19 加了 `ALTER TABLE member_info ADD UNIQUE INDEX ...`
+2. **detail→order cardinality**：`expense_orderId` 无单列 UNIQUE（复合索引含 `expense_d_state`），Tom 的 INFORMATION_SCHEMA SQL 只抓单列唯一索引。暂不声明 relationship，三表组合走 `adhocQueryBatch`。
+3. **Tom Zafred RFC-001 workbench-guard 集成**：3-Zoom FK subgraphs 与 AdhocSqlCompiler 的 cross-table grain validation 对接，待 Tom 回应 validateMeasureGrain() 代码对比请求。
 
 ### 下一步
 
-1. DEV.to 回复 Tom Zafred（附 MetadataBootstrapValidator 真实跑数）
-2. GitHub Issue #1-3 跟进（已 merge 的 Wildcard/SyncResource，待提 PR 给 Tom 合并）
-3. 等 HN Show HN 解禁 + 发布
+1. ~~DEV.to 回复 Tom Zafred~~ ✅ 已回复（附真实跑数 + PR-level issues 合并 + workbench-guard RFC-001 star）
+2. ~~GitHub Issue #1-3 跟进~~ ✅ 全部关闭（#1 Wildcard / #2 SyncResource / #3 MetadataBootstrapValidator）
+3. ~~等 HN Show HN 解禁 + 发布~~ — 继续等
+4. **回应 Tom Nov 19 追问**：dev.to 追加一条（Issues 关闭 + 帖子更新 + member_mobile UNIQUE 已加）
+5. **RFC-001 workbench-guard 集成**：Tom 提了 3-Zoom FK subgraphs，与 validateMeasureGrain() 对比后考虑集成
+6. **DEV.to 帖子 Edit**：加 UPDATE: Nov 19 — Peer Review Lands 段（架构图 + Tech Stack + What's next）
