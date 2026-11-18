@@ -188,6 +188,62 @@ entities:
 
 ---
 
+## 06 如何用 INFORMATION_SCHEMA 自动推断 FK cardinality
+
+**核心观点**：不要信任手工 YAML 声明的 cardinality — 让 MySQL DDL 的唯一索引自己说话。
+
+### 为什么要自动推断
+
+`metadata.yaml` 的 `relationships.cardinality` 是 JOIN 粒度守卫的唯一事实来源。如果手工声明错了（to_one 写成 to_many 或反过来），`validateMeasureGrain()` 就会静默放过跨粒度 JOIN 或错误地拒绝合法查询。但 cardinality 是人写的，人会错。
+
+### Tom Zafred 给的 SQL（2026-11-19 DEV.to 同行评审）
+
+> Tom Zafred 是 Sentry 资深工程师，在 DEV.to 上发现我们项目的 cardinality 纯手工声明后，提供了这条 SQL：
+
+```sql
+SELECT TABLE_NAME, INDEX_NAME, MIN(COLUMN_NAME) AS key_col
+FROM INFORMATION_SCHEMA.STATISTICS
+WHERE TABLE_SCHEMA = DATABASE() AND NON_UNIQUE = 0
+GROUP BY TABLE_NAME, INDEX_NAME
+HAVING COUNT(*) = 1;
+```
+
+**语义**：单列唯一索引 → 该列是 to_one 关系的被指向列。没有唯一索引 → SQL 无法推断。
+
+### 我们的落地：MetadataBootstrapValidator
+
+- **启动期跑一次**：`CommandLineRunner`，SemanticRegistry 和数据源就绪后执行
+- **缓存单列唯一索引列**：`Map<table_lower, Set<col_lower>>`
+- **解析 YAML relationship 的 ON 条件**（正则 `alias.col = alias.col`），推断 cardinality
+- **只证 to_one，不证 to_many**：
+  - JOIN 列有唯一索引 → 证实 to_one ✅
+  - JOIN 列没有唯一索引 → **返回 null，信任 YAML 声明**（不打 WARN）
+- **不阻塞启动**：数据库没连上时跳过，打 WARN 即可
+
+### 真实 CRM schema 跑出来的结果
+
+```
+member↔order: 无法从 INFORMATION_SCHEMA 推断（可能 JOIN 列无索引），跳过
+member↔detail: 无法推断，跳过
+order↔member: 无法推断，跳过
+detail↔member: 无法推断，跳过
+校验完成：共 4 条关系，0 条不一致
+```
+
+**根因**：`member_mobile` 在业务上是一对一（一个手机号 = 一个会员），但 DDL 里是普通 INDEX 不是 UNIQUE。SQL 只认 DDL 不认业务逻辑 — 这是 CRM 历史遗留，不改 DDL 的话 SQL 永远证不了 to_one。
+
+### 为什么只证 to_one 不证 to_many
+
+| 场景 | SQL 能证吗 | 后果 |
+|---|---|---|
+| DDL 有显式 UNIQUE | ✅ 能证 to_one | YAML 声明错了能抓出来 |
+| DDL 没显式 UNIQUE 但业务上一对一 | ❌ 不能 | SQL 推断为 to_many 是假警报 |
+| DDL 没索引 | ❌ 不能（但会扫全表） | 当前项目不会出现这种坏 schema |
+
+**设计选择**：SQL 只做正向证实，不做反向证伪。to_many 一律信任 YAML — 因为"没唯一索引"≠"确实是一对多"（可能是 DDL 没声明）。宁可漏判 1 条，不误报 10 条。
+
+---
+
 ## 文档索引
 
 | 深入阅读 | 位置 |

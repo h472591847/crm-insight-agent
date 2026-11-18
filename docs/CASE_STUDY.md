@@ -85,6 +85,8 @@ MetricResult（含 sqlHash + caliber 回显）
 | VARCHAR 必须 `NUM()` | `expense_realamt` 是 VARCHAR，直接 SUM 会错 | `column-types.yaml` 声明 + 编译器自动包装 |
 | 时间边界左闭右开 | 防止 `BETWEEN` 包含结束日全量 | 编译器硬编码 `>= ? AND < DATE_ADD(?, INTERVAL 1 DAY)` |
 | 枚举白名单 | dimension/filter/code 不在 YAML 里 → 拒绝 | `QueryPlanValidator` |
+| **LIKE 前导通配符拒绝** | 前导 `%` / `_` 绕开 BTREE 索引 → 全表扫描 | `AdhocRequestValidator.WildcardPositionCheck`（Tom Zafred DEV.to 建议） |
+| **FK cardinality 自校验** | 启动期跑 INFORMATION_SCHEMA 唯一索引 SQL，自动推断 YAML 声明的 cardinality 是否和 DDL 一致（只证 to_one，不证 to_many） | `MetadataBootstrapValidator`（Tom Zafred 提供 SQL） |
 
 ### 第二层：执行层 Guard（最后防线）
 
@@ -149,6 +151,11 @@ template.setQueryTimeout(10);        // 服务端超时 10s
 | **completions-path 层级** | URL 拼错位置 | `spring.ai.openai.completions-path` 写错层 | 修正为 `spring.ai.openai.chat.completions-path` |
 | **MySQL 字符集** | 中文注释变 `C3A4C2BC` hex | `character_set_client=latin1` + PowerShell 管道编码 | `docker cp` + `mysql source --default-character-set=utf8mb4` |
 | **VARCHAR 金额直接 SUM** | 某些门店金额偏差 30% | `expense_realamt` 是 VARCHAR，MySQL 隐式转换截断到第一个非数字字符 | `NUM()` = `CAST(NULLIF(TRIM(col),'') AS DECIMAL(20,2))` |
+| **MCP SDK import 路径** | 编译找不到 Resource/ReadResourceResult | 以为 Spring AI 有 MCP 类，实际委托给 MCP SDK | `import io.modelcontextprotocol.spec.McpSchema;` + `import io.modelcontextprotocol.server.McpServerFeatures;` |
+| **MCP SDK 0.17.0 API signatures** | `Resource.builder("uri")` 传参报错、`ReadResourceResult.builder()` 不存在 | SDK 0.17.0 只有 Resource/Tool/Prompt 有 Builder，ReadResourceResult/TextResourceContents 是纯 Record 直接 new | `Resource.builder().uri("...").name("...").build(); new ReadResourceResult(contents)` |
+| **CI bash\r + Permission denied** | GitHub Actions runner 执行 mvnw 报 `/usr/bin/env: 'bash\r'` 和无权限 | Windows commit 的 CRLF 换行 + Linux runner 不认 | CI workflow 加 `sed -i 's/\r$//' ./mvnw` + `chmod +x` |
+| **CI List.of() 类型推断** | `List.of(new String[]{...})` javac 展开成可变参数推断 `List<String>` 不是 `List<String[]>` | javac 对数组单元素的可变参数重载歧义 | `List.<String[]>of(...)` 显式类型参数 |
+| **tool-definitions.json 50KB 膨胀** | LLM 解析慢、MCP hosts 可能拒绝过大 tool list | 把 set_level 50+ 编码内联在 @Tool description 里 | 移到 MCP Resource `crm://levels/set_level-codes`，tool-definitions.json 50KB → 8KB |
 
 ---
 

@@ -28,8 +28,9 @@ This project is not just a standalone CRM tool, but a **reusable reference imple
 │ • Session Orche │                   │ • SqlCompiler   │          └─────────┘
 │ • SSE Streaming │                   │ • MetricRegistry│
 │ • ChatMemory    │                   │ • ReadOnlyGuard │          ┌─────────┐
-└─────────────────┘                   └─────────────────┘ ◄───────► │  Redis  │
-                                                                     │ Stack   │
+└─────────────────┘                   │ • MCP Resource  │ ◄───────► │  Redis  │
+                                      │ • MetaValidator │          │ Stack   │
+                                      └─────────────────┘          └─────────┘
 ```
 
 ## Quick Start
@@ -114,9 +115,17 @@ The model only outputs **structured enum combinations** (metric + dimension + fi
 
 | Layer | Mechanism | Protection Scope |
 |---|---|---|
-| **Compilation Gate** | Table/column whitelisting + time boundary + grain cross-validation | Prevents arbitrary or hallucinated model parameters |
+| **Compilation Gate** | Table/column whitelisting + time boundary + grain cross-validation + LIKE leading-wildcard rejection + INFORMATION_SCHEMA FK cardinality auto-validation | Prevents arbitrary parameters, index-bypassing patterns, and cardinality drift between YAML and DDL |
 | **Execution Guard** | ReadOnlySqlGuard — Regex + keyword matching + read-only DB user | Blocks write operations, DDL statements, and system objects |
 | **Runtime Fallback** | maxRows / queryTimeout / MAX_EXECUTION_TIME hints | Mitigates slow queries and result-set explosion |
+
+### MCP Resources for Payload Slimming
+
+Tool descriptions that embed large static tables (e.g. `set_level` codes) bloat `tool-definitions.json` to ~50KB — slow for LLM parsing. We serve them as **MCP Resources** (`crm://levels/set_level-codes`) instead:
+
+- Tool definitions shrink from **50KB → 8KB**
+- LLM pulls codes on-demand via Resource read, only when needed
+- `ToolConfiguration.levelCodesResource()` registers the bean at startup
 
 ### SQL Auditing
 

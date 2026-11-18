@@ -15,6 +15,8 @@
 | 时间边界硬编码 | 左闭右开 `>= ? AND < DATE_ADD(?, INTERVAL 1 DAY)` | 编译器生成，配置不参与 |
 | 时间跨度上限 | 全局 550 天，指标可显式收紧（如 PRODUCT_RANKING 92 天） | `MetricsLimits.globalMaxRangeDays` + `metric.maxRangeDays` |
 | 参数化占位 | 所有动态值一律 `?`，字符串永不拼接 | `GeneratedSql.params[]` |
+| **LIKE 通配符位置** | 前导 `%` 或 `_` 一律拒绝（绕开 BTREE 索引的全表扫描）；后缀通配符允许（索引友好） | `AdhocRequestValidator.WildcardPositionCheck`（索引列白名单：`member_name`, `member_allot_staffName`） |
+| **FK cardinality 自校验** | 启动期跑 INFORMATION_SCHEMA 单列唯一索引 SQL，自动推断声明的 relationship cardinality 是否和 DDL 事实一致（只证 to_one，不证 to_many — 信任 YAML 声明） | `MetadataBootstrapValidator`（Tom Zafred 提供的 SQL，2026-11-19 落地） |
 
 **关键认知**：防注入靠白名单不靠黑名单。白名单从源头排除，黑名单做最后防线。
 
