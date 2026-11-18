@@ -3,8 +3,8 @@ package com.github.yingli.mcp.config;
 
 import com.github.yingli.mcp.tool.*;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.ai.resource.Resource;
-import org.springframework.ai.resource.SyncResourceSpecification;
+import org.springframework.ai.mcp.McpSchema;
+import org.springframework.ai.mcp.server.McpServerFeatures;
 import org.springframework.ai.tool.ToolCallbackProvider;
 import org.springframework.ai.tool.method.MethodToolCallbackProvider;
 import org.springframework.context.annotation.Bean;
@@ -41,16 +41,27 @@ public class ToolConfiguration {
     /**
      * set_level 编码表按需拉取资源（Tom Zafred DEV.to suggestion, Issue #2）。
      * 避免在 @Tool description 内联 50+ 编码，tool-definitions.json 从 ~50KB 缩到 ~8KB。
-     * Spring AI 1.1 的 SyncResourceSpecification + Resource，application.yml 已 capabilities.resource: true。
+     * Spring AI 1.1.x MCP Resource API: McpServerFeatures.SyncResourceSpecification + McpSchema.
+     * application.yml 已 capabilities.resource: true。
      */
     @Bean
-    public SyncResourceSpecification levelCodesResource() {
+    public List<McpServerFeatures.SyncResourceSpecification> levelCodesResource() {
         String content = loadClasspathDoc("docs/LEVEL_CODES.md");
         log.info("MCP Resource registered: crm://levels/set_level-codes ({} chars)", content.length());
-        return new SyncResourceSpecification(
-                "crm://levels/set_level-codes",
-                () -> List.of(new Resource("crm://levels/set_level-codes", content))
+
+        var resource = McpSchema.Resource.builder("crm://levels/set_level-codes")
+                .name("CRM Level Codes Reference")
+                .description("set_level 编码表（AA~HC 模式），按需拉取避免 tool-definitions.json 膨胀")
+                .mimeType("text/markdown")
+                .build();
+
+        var spec = new McpServerFeatures.SyncResourceSpecification(resource, (exchange, request) ->
+                McpSchema.ReadResourceResult.builder(
+                        List.of(McpSchema.TextResourceContents.builder(request.uri(), content)
+                                .mimeType("text/markdown").build())
+                ).build()
         );
+        return List.of(spec);
     }
 
     private String loadClasspathDoc(String path) {
