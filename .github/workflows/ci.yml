@@ -29,8 +29,10 @@ jobs:
           cache: maven
 
       - name: Run tests
-        # 注意：mvnw 在 Linux runner 上需要 chmod +x（Windows commit 不保留 exec bit）
+        # Windows commit 的 mvnw 可能带 CRLF 换行符，Linux bash 执行会失败
+        # 需要先转 CRLF→LF，再 chmod +x
         run: |
+          sed -i 's/\r$//' ./mvnw
           chmod +x ./mvnw
           ./mvnw -B -pl mcp-server -am test
 
