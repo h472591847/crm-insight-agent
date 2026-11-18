@@ -69,38 +69,63 @@ class MetadataBootstrapValidatorTest {
         assertEquals(SemanticRegistry.RelationshipDef.TO_MANY, inferred);
     }
 
-    // ——————————————————————————————————— 场景 3：不一致 ———————————————————————————————————
+    // ——————————————————————————————————— 场景 3：YAML 声明 to_many，SQL 能证明确实是 to_one（YAML 过度保守） ———————————————————————————————————
 
     @Test
-    void detects_mismatch_when_yaml_says_to_one_but_sql_says_to_many() throws Exception {
-        // 假设有人把 member→order 错误声明为 to_one（实际上是 to_many）
+    void detects_mismatch_when_yaml_says_to_many_but_sql_proves_to_one() throws Exception {
+        // SQL 能证明确实是 to_one（member_mobile 有唯一索引），但 YAML 错误声明为 to_many
+        // 这种情况应该打 WARN — 我们改后的逻辑：SQL 能证伪 to_many 声明
         JdbcTemplate jdbc = mockJdbc(List.of(
                 new String[]{"member_info_view", "member_mobile"}
         ));
 
-        // YAML 声明 member→order 为 to_one（错误！）
-        SemanticRegistry registry = mockRegistryWith("member", "order", "to_one",
-                "mv.member_mobile = e.expense_mobile", "mv", "member_info_view",
-                "e", "expense_calendar_info");
+        SemanticRegistry registry = mockRegistryWith("order", "member", "to_many",
+                "e.expense_mobile = mv.member_mobile", "e", "expense_calendar_info",
+                "mv", "member_info_view");
 
         Map<String, String> aliasMap = Map.of(
-                "mv", "member_info_view",
-                "e", "expense_calendar_info"
+                "e", "expense_calendar_info",
+                "mv", "member_info_view"
         );
 
-        String inferred = invokeInfer(jdbc, registry, "member", "order", "to_one",
-                "mv.member_mobile = e.expense_mobile", aliasMap);
+        String inferred = invokeInfer(jdbc, registry, "order", "member", "to_many",
+                "e.expense_mobile = mv.member_mobile", aliasMap);
 
-        // SQL 推断 to_many，YAML 声明 to_one → 不一致！
-        assertEquals(SemanticRegistry.RelationshipDef.TO_MANY, inferred);
-        assertNotEquals("to_one", inferred); // 这就是 validateAll 里会 log.warn 的场景
+        // SQL 推断 to_one（有唯一索引），但 YAML 声明 to_many
+        assertEquals(SemanticRegistry.RelationshipDef.TO_ONE, inferred);
+        assertNotEquals("to_many", inferred); // validateAll 里会 log.warn 的场景
     }
 
-    // ——————————————————————————————————— 场景 4：目标表不在 INFORMATION_SCHEMA ———————————————————————————————————
+    // ——————————————————————————————————— 场景 4：表无 UNIQUE 索引 → SQL 推断不到 → 信任 YAML ———————————————————————————————————
+
+    @Test
+    void returns_null_when_no_unique_index_trusts_yaml() throws Exception {
+        // member_info_view.member_mobile 没有唯一索引（业务上认为是 to_one 但 DDL 没声明）
+        // SQL 推断不了，应该返回 null → validateAll 跳过，不打 WARN
+        JdbcTemplate jdbc = mockJdbc(List.of(
+                // 空——member_info_view 完全没有单列唯一索引
+        ));
+
+        SemanticRegistry registry = mockRegistryWith("order", "member", "to_one",
+                "e.expense_mobile = mv.member_mobile", "e", "expense_calendar_info",
+                "mv", "member_info_view");
+
+        Map<String, String> aliasMap = Map.of(
+                "e", "expense_calendar_info",
+                "mv", "member_info_view"
+        );
+
+        String inferred = invokeInfer(jdbc, registry, "order", "member", "to_one",
+                "e.expense_mobile = mv.member_mobile", aliasMap);
+
+        // 没有唯一索引 → 推断不了 → 返回 null → 信任 YAML 声明 to_one
+        assertNull(inferred);
+    }
+
+    // ——————————————————————————————————— 场景 5：目标表不在 INFORMATION_SCHEMA ———————————————————————————————————
 
     @Test
     void returns_null_when_targetTable_not_in_informationSchema() throws Exception {
-        // INFORMATION_SCHEMA 里完全没有目标表（比如用的是 SQLite 或 schema 不对）
         JdbcTemplate jdbc = mockJdbc(List.of()); // 空结果
 
         SemanticRegistry registry = mockRegistryWith("detail", "unknown", "to_one",
@@ -109,7 +134,7 @@ class MetadataBootstrapValidatorTest {
 
         Map<String, String> aliasMap = Map.of(
                 "ed", "expense_calendar_details",
-                "u", "unknown_table" // 这个表不在 INFORMATION_SCHEMA 里
+                "u", "unknown_table"
         );
 
         String inferred = invokeInfer(jdbc, registry, "detail", "unknown", "to_one",

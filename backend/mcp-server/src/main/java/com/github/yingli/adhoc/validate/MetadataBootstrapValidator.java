@@ -174,12 +174,23 @@ public class MetadataBootstrapValidator implements CommandLineRunner {
         }
 
         Set<String> uniqueCols = singleColUniqueKeys.get(targetTable);
-        if (uniqueCols == null) return null;
+        if (uniqueCols == null) return null; // 表不在 INFORMATION_SCHEMA 里（可能是视图），跳过
 
-        // JOIN 列在目标表上有单列唯一索引 → to_one
-        // 否则 → to_many
+        // 核心改进：只证"to_one"，不证"to_many"。
+        //
+        // 能证伪的场景：目标表是物理表、JOIN 列有显式 UNIQUE 约束 → YAML 说 to_one 是对的。
+        // 不能证伪的场景：
+        //   1. 目标表是视图（member_info_view 是触发器同步的物理表，但 DDL 没有显式 UNIQUE）
+        //   2. UNIQUE 约束被业务上认为存在但没在 DDL 里声明
+        //   3. 索引名不同或 Tom 的 SQL 边界条件没覆盖到
+        // 以上情况 SQL 推断为 to_many 都是假警报——信任 YAML 声明，不打 WARN。
+        //
+        // 只有当 SQL 能确认目标表是物理表且 JOIN 列没有任何索引时，
+        // 才报告 YAML 声明可能有问题（无索引 to_one 会扫全表）。
+        // 但这种情况当前项目里不会出现，先简化为：SQL 只能确认 to_one，to_many 一律信任 YAML。
+
         return uniqueCols.contains(targetCol)
-                ? SemanticRegistry.RelationshipDef.TO_ONE
-                : SemanticRegistry.RelationshipDef.TO_MANY;
+                ? SemanticRegistry.RelationshipDef.TO_ONE   // 证实：有唯一索引
+                : null;  // 无法证实，信任 YAML 声明
     }
 }
