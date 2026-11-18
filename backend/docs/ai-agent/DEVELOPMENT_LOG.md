@@ -1799,3 +1799,97 @@ CRM 实现方式（只读分析，不改 CRM 源码）：
 - `guessStation("哈尔滨尚志世纪店")` → `matchedBy=office_only`、`stationCode=51010211`、`memberCount=0`、`hasOrders=true`、`actionHint=unique_match`。
 - “集团总部的一般发展用户和重要挽留用户一共有多少”：369 店口径 = **136,769**（一般发展用户 125,810 + 重要挽留用户 10,959），与收敛前 375 店结果完全一致。
 
+
+## 2026-11-19：DEV.to 同行评审落地（两轮）+ GitHub Actions CI 修复链
+
+### 背景
+
+项目发布到 DEV.to（帖：https://dev.to/ying_li_...）后，Tom Zafred（Founder & Principal Systems Architect at Biomed Systems Limited UK，MCP 治理工具链作者）做了真实逐行评审，给了三个关键建议。
+
+### 第一轮落地（commit f299dac → fdc8836）
+
+1. **WildcardPositionCheck — LIKE 前导通配符拒绝**（Tom 建议）
+   - 问题：`LIKE '%张三'` 绕开 BTREE 索引强制全表扫描，只允许后缀通配符（索引友好）
+   - 实现：`AdhocRequestValidator` 新增 WildcardPositionCheck，前导 `%` 或 `_` 一律拒绝；后缀通配符（如 `'张三%'`）允许
+   - 影响列：所有可过滤列，索引列白名单 `member_name`, `member_allot_staffName`
+   - 测试：`AdhocRequestValidatorTest` 新增前导拒绝 / 后缀放行用例
+
+2. **SyncResourceSpecification — set_level 编码移到 MCP Resource**（Tom 建议）
+   - 问题：`@Tool description` 内联 50+ set_level 编码，`tool-definitions.json` 膨胀到 ~50KB
+   - 实现：`ToolConfiguration.levelCodesResource()` 注册 `crm://levels/set_level-codes` MCP Resource，按需拉取
+   - 效果：`tool-definitions.json` 从 **50KB → 8KB**
+   - SDK 踩坑：MCP SDK 0.17.0 的 `Resource` 有 Builder（无参 `builder()` + setter），但 `ReadResourceResult` / `TextResourceContents` 是纯 Record 直接 `new`，不能 `.builder()`
+
+### 第二轮落地（commit ba6c269）
+
+3. **MetadataBootstrapValidator — INFORMATION_SCHEMA 自动推断 FK cardinality**（Tom 提供 SQL）
+   - 问题：`metadata.yaml` 的 `relationships.cardinality` 是手工声明，人会错
+   - Tom 给的 SQL：
+     ```sql
+     SELECT TABLE_NAME, INDEX_NAME, MIN(COLUMN_NAME) AS key_col
+     FROM INFORMATION_SCHEMA.STATISTICS
+     WHERE TABLE_SCHEMA = DATABASE() AND NON_UNIQUE = 0
+     GROUP BY TABLE_NAME, INDEX_NAME
+     HAVING COUNT(*) = 1;
+     ```
+   - 实现：启动期 CommandLineRunner 跑 SQL，缓存单列唯一索引列 Map，解析 YAML relationship 的 ON 条件推断 cardinality
+   - **只证 to_one，不证 to_many**：JOIN 列有唯一索引 → 证实 to_one；没有唯一索引 → 返回 null 信任 YAML 声明（不打 WARN）
+   - 真实 CRM schema 跑数：
+     ```
+     member↔order: 无法推断（JOIN 列无唯一索引），跳过
+     member↔detail: 无法推断，跳过
+     order↔member: 无法推断，跳过
+     detail↔member: 无法推断，跳过
+     校验完成：共 4 条关系，0 条不一致
+     ```
+   - 根因：`member_mobile` 业务上是一对一，但 DDL 里是普通 INDEX 不是 UNIQUE。SQL 只认 DDL 不认业务逻辑。
+   - 设计选择：只做正向证实，不做反向证伪。宁可漏判 1 条，不误报 10 条。
+
+### MCP SDK 0.17.0 API 踩坑
+
+| 坑 | 根因 | 正确写法 |
+|---|---|---|
+| import 找不到 Resource/ReadResourceResult | 以为 Spring AI 有 MCP 类，实际委托给 MCP SDK | `import io.modelcontextprotocol.spec.McpSchema;` + `import io.modelcontextprotocol.server.McpServerFeatures;` |
+| `Resource.builder("uri")` 传参报错 | SDK 0.17.0 Builder 无参 | `Resource.builder().uri("...").name("...").build()` |
+| `ReadResourceResult.builder()` 不存在 | SDK 只给 Resource/Tool/Prompt 有 Builder，其余是 Record | `new McpSchema.ReadResourceResult(List.of(...))` |
+
+### GitHub Actions CI 修复链（4 次迭代）
+
+| # | 报错 | 修复 | Commit |
+|---|---|---|---|
+| ① | `Permission denied` / `/usr/bin/env: 'bash\r'` | CI workflow 加 `sed -i 's/\r$//' ./mvnw` + `chmod +x` | `3c44ada`, `f299dac` |
+| ② | `List.of()` 推断 `List<String>` 不是 `List<String[]>` | `List.<String[]>of(...)` 显式类型参数 | `1f0cccb` |
+| ③ | 测试 `expected: <to_many> but was: <null>` | 断言跟新逻辑对齐（只证 to_one 返回 null） | `dc2c890` |
+| ④ | `ToolContractSnapshotTest` 契约基线 diff | `MetricsFixtures.writeBaseline()` 更新基线 | `8a5e4ac` |
+
+### 修改文件
+
+- **主代码**：`AdhocRequestValidator.WildcardPositionCheck`（L326-338）、`MetadataBootstrapValidator`（新类）、`ToolConfiguration.levelCodesResource()`
+- **测试**：`AdhocRequestValidatorTest` +4（前导拒绝/后缀放行/方向组合）、`MetadataBootstrapValidatorTest`（新类）、`ToolContractSnapshotTest` 契约基线更新
+- **契约**：`tool-definitions.json`（50KB → 8KB）
+- **CI**：`.github/workflows/ci.yml`（sed + chmod + 显式类型）
+- **文档**：`SECURITY.md`、`METHODOLOGY.md`（新增第 06 讲）、`README.md`（架构图 + MCP Resource 段）、`CASE_STUDY.md`（安全层 + 踩坑实录 6 行）
+
+### 架构或技术决策
+
+1. **MetadataBootstrapValidator 只证 to_one 不证 to_many**：SQL 能证实 DDL 有唯一索引（= to_one），但"没唯一索引"≠"确实是一对多"（可能 DDL 没声明但业务上是一对一）。信任 YAML 声明，避免假警报。
+2. **不阻塞启动**：数据库没连上时跳过，打 WARN 即可。INFORMATION_SCHEMA 对 SQLite 等数据库也不适用。
+3. **MCP Resource 替代内联描述**：大段静态参考表移到 Resource，Tool definitions 保持精简。LLM 按需拉取 Resource 内容，只在需要时才读。
+4. **WildcardPositionCheck 服务端强制**：模型侧提示词约束最后都要服务端兜底（历史经验），前导通配符绕索引是典型慢 SQL 入口，硬拒绝。
+
+### 测试与验证结果
+
+- GitHub Actions 全绿（4 次 CI 迭代后 `tool-definitions.json` 契约基线更新完成）
+- 本地全量编译通过：`mvnw -o -pl mcp-server test`
+- MetadataBootstrapValidator 真实 CRM schema 跑数：4 条关系全跳过、0 不一致
+
+### 未解决问题
+
+1. **CRM DDL 历史遗留**：`member_mobile` 业务上是一对一但 DDL 没 UNIQUE 约束，SQL 无法证 to_one。需 CRM DBA 确认是否加 `ALTER TABLE member_info ADD UNIQUE INDEX ...`（未授权不动）。
+2. **Tom Zafred 未进一步回复**：首轮建议已落地，等他 review。
+
+### 下一步
+
+1. DEV.to 回复 Tom Zafred（附 MetadataBootstrapValidator 真实跑数）
+2. GitHub Issue #1-3 跟进（已 merge 的 Wildcard/SyncResource，待提 PR 给 Tom 合并）
+3. 等 HN Show HN 解禁 + 发布

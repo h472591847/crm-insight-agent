@@ -40,6 +40,9 @@
   - `mcp-server/src/main/resources/metrics/{member,order}.yaml` —— 固化指标配置
   - `mcp-server/src/main/java/com/itzixi/adhoc/` —— Ad-hoc 引擎包（`SemanticRegistry` 加载器、`AdhocValidator` 白名单校验、`AdhocSqlCompiler` 编译、`AdhocQueryService` 编排、`model/AdhocBatchRequest` 批量请求）
   - `mcp-server/src/main/java/com/itzixi/mcp/tool/AdhocTool.java` —— 4 个 Ad-hoc MCP 工具
+  - `mcp-server/src/main/java/com/itzixi/mcp/config/ToolConfiguration.java` —— MCP Tool 注册 + MCP Resource（`crm://levels/set_level-codes`，set_level 编码按需拉取）
+  - `mcp-server/src/main/java/com/itzixi/adhoc/validate/MetadataBootstrapValidator.java` —— 启动期 INFORMATION_SCHEMA 自动推断 FK cardinality（只证 to_one，不证 to_many）
+  - `mcp-server/src/main/java/com/itzixi/adhoc/validate/AdhocRequestValidator.java` —— WildcardPositionCheck（LIKE 前导通配符拒绝）
 - 业务需求仍需与产品经理进一步确认
 
 ## 四、现有仓库技术背景
