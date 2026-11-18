@@ -2,9 +2,9 @@ package com.github.yingli.mcp.config;
 
 
 import com.github.yingli.mcp.tool.*;
+import io.modelcontextprotocol.server.McpServerFeatures;
+import io.modelcontextprotocol.spec.McpSchema;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.ai.mcp.McpSchema;
-import org.springframework.ai.mcp.server.McpServerFeatures;
 import org.springframework.ai.tool.ToolCallbackProvider;
 import org.springframework.ai.tool.method.MethodToolCallbackProvider;
 import org.springframework.context.annotation.Bean;
