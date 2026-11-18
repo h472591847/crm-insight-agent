@@ -323,6 +323,19 @@ public class AdhocRequestValidator {
                 throw invalid("手机号列 " + f.getColumn() + " 仅支持精确匹配（= / != / IS NULL / IS NOT NULL），"
                         + "不支持 " + f.getOp() + " 等模糊/前缀/包含匹配；请提供完整手机号后等值查询");
             }
+            // --- WildcardPositionCheck (Tom Zafred DEV.to 建议) ---
+            // 前导通配符（% 或 _）会绕开 BTREE 索引，强制全表扫描。只允许后缀通配符（index-friendly）。
+            if ("LIKE".equals(op) && StringUtils.isNotBlank(f.getValue())) {
+                String v = f.getValue().trim();
+                boolean leadingPct = v.startsWith("%");
+                boolean leadingUnderscore = v.startsWith("_");
+                if (leadingPct || leadingUnderscore) {
+                    String culprit = leadingPct ? "%" : "_";
+                    throw invalid("LIKE 过滤禁止前导 " + culprit + " 通配符（会绕开索引导致全表扫描）："
+                            + f.getColumn() + " LIKE '" + v + "'"
+                            + "；请改用后缀通配符（如 '张三%'），或去掉通配符直接等值查询");
+                }
+            }
             boolean setOperator = op.equals("IN") || op.equals("NOT IN");
             if (setOperator) {
                 if (StringUtils.isNotBlank(f.getValue())) {

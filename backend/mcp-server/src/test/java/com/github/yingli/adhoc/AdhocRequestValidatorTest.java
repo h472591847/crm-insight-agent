@@ -624,4 +624,54 @@ class AdhocRequestValidatorTest {
         r.setOrderBy("cnt desc");
         assertThatCode(() -> validator.validate(r)).doesNotThrowAnyException();
     }
+
+    // ---------- WildcardPositionCheck (Tom Zafred DEV.to suggestion) ----------
+
+    @ParameterizedTest
+    @ValueSource(strings = {"%人民路", "_人民路", "%人民路%"})
+    @DisplayName("LIKE 前导 % 或 _ 通配符：禁止（绕索引全表扫描）")
+    void leadingWildcardRejected(String value) {
+        AdhocQueryRequest r = req(List.of("member"), List.of(),
+                List.of(simple("MEMBER_COUNT", "cnt")));
+        FilterSpec f = new FilterSpec();
+        f.setEntity("member");
+        f.setColumn("member_allot_store");
+        f.setOp("LIKE");
+        f.setValue(value);
+        r.setFilters(List.of(f));
+        assertThatThrownBy(() -> validator.validate(r))
+                .isInstanceOf(AdhocException.class)
+                .hasMessageContaining("前导")
+                .hasMessageContaining("通配符")
+                .extracting(e -> ((AdhocException) e).code())
+                .isEqualTo("INVALID_PARAM");
+    }
+
+    @Test
+    @DisplayName("LIKE 后缀通配符（index-friendly）：允许")
+    void trailingWildcardAllowed() {
+        AdhocQueryRequest r = req(List.of("member"), List.of(),
+                List.of(simple("MEMBER_COUNT", "cnt")));
+        FilterSpec f = new FilterSpec();
+        f.setEntity("member");
+        f.setColumn("member_allot_store");
+        f.setOp("LIKE");
+        f.setValue("人民路%");
+        r.setFilters(List.of(f));
+        assertThatCode(() -> validator.validate(r)).doesNotThrowAnyException();
+    }
+
+    @Test
+    @DisplayName("LIKE 纯等值（无通配符）：允许")
+    void noWildcardLikeAllowed() {
+        AdhocQueryRequest r = req(List.of("member"), List.of(),
+                List.of(simple("MEMBER_COUNT", "cnt")));
+        FilterSpec f = new FilterSpec();
+        f.setEntity("member");
+        f.setColumn("member_allot_store");
+        f.setOp("LIKE");
+        f.setValue("人民路店");
+        r.setFilters(List.of(f));
+        assertThatCode(() -> validator.validate(r)).doesNotThrowAnyException();
+    }
 }
